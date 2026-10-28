@@ -14,9 +14,11 @@ installing anything:
 to tracked files when it was built. The same string is shown in
 *Help > About* and by `rawtherapee-cli --version`.
 
-Both builds run **locally, inside Docker containers**. Nothing is installed on
-the host and no remote CI is involved. The host only needs `git`, `docker`
-(the invoking user must be allowed to run it) and bash.
+Both builds run **inside Docker containers**. Nothing is installed on the
+host, which only needs `git`, `docker` (the invoking user must be allowed to
+run it) and bash. GitHub Actions runs the same scripts
+(`.github/workflows/masks-release.yml`): pushing a `masks-*` tag builds both
+packages and publishes them as a GitHub release of that name.
 
 ```
 ./packaging/release.sh appimage    # Linux AppImage

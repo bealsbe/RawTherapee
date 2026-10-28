@@ -1,0 +1,87 @@
+# Builds the Linux AppImage and the portable Windows zip of this fork with
+# the same Docker based scripts used locally (packaging/release.sh) and, for
+# a pushed "masks-*" tag, publishes both on a GitHub release of that name.
+#
+#   git tag masks-2026.10.28 && git push fork masks-2026.10.28
+#
+# "Run workflow" on the Actions tab builds without publishing; the packages
+# are then attached to the run as artifacts.
+
+name: Masks release packages
+
+on:
+  push:
+    tags:
+      - 'masks-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    # never run in other copies of the repository
+    if: github.repository == 'bealsbe/RawTherapee'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [appimage, windows]
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v6
+        with:
+          # git describe needs the history and the version tags
+          fetch-depth: 0
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - name: Build ${{ matrix.target }}
+        run: ./packaging/release.sh ${{ matrix.target }}
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: rawtherapee-${{ matrix.target }}
+          path: |
+            packaging/dist/*.AppImage
+            packaging/dist/*.zip
+            packaging/dist/*-AboutThisBuild.txt
+          if-no-files-found: error
+
+  release:
+    needs: package
+    if: startsWith(github.ref, 'refs/tags/masks-')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          cat > notes.md <<'EOF'
+          RawTherapee with the **Masks** tool (local adjustments), see the README.
+
+          **Linux:** download the `.AppImage`, make it executable (`chmod +x`) and run it. Needs x86_64 and glibc 2.34 or newer (Ubuntu 22.04, Debian 12, Fedora 35 or later).
+
+          **Windows:** download the `win64-portable.zip`, unzip it anywhere and double-click `rawtherapee.exe`. Nothing is installed.
+
+          The Subject, Sky, Background and Object masks need the optional Python helper described in `rtdata/segmentation/README.md`; without it those four tools are greyed out and everything else works.
+          EOF
+          gh release create "$TAG" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "RawTherapee Masks $TAG" \
+            --notes-file notes.md \
+            --verify-tag

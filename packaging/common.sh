@@ -19,9 +19,11 @@ log() { printf '\033[1;34m[packaging]\033[0m %s\n' "$*" >&2; }
 die() { printf '\033[1;31m[packaging] error:\033[0m %s\n' "$*" >&2; exit 1; }
 
 # Version string: `git describe --tags --always --dirty`, e.g.
-# 5.13-32-gb2ee504c4-dirty. "-dirty" marks uncommitted changes to tracked files.
+# 5.13-32-gb2ee504c4-dirty, counting only upstream version tags (5.13, ...),
+# not this fork's masks-* release tags. "-dirty" marks uncommitted changes
+# to tracked files.
 rt_version() {
-    git -C "$REPO_DIR" describe --tags --always --dirty 2>/dev/null \
+    git -C "$REPO_DIR" describe --tags --match '[0-9]*' --always --dirty 2>/dev/null \
         || die "git describe failed (is $REPO_DIR a git checkout?)"
 }
 
@@ -36,7 +38,7 @@ rt_write_release_info() {
     commit="$(git -C "$REPO_DIR" rev-parse --short --verify HEAD)"
     date="$(git -C "$REPO_DIR" show -s --format=%cd --date=format:%Y-%m-%d)"
     # shellcheck disable=SC2046
-    since_tag="$(git -C "$REPO_DIR" rev-list --count HEAD --not $(git -C "$REPO_DIR" tag --merged HEAD))"
+    since_tag="$(git -C "$REPO_DIR" rev-list --count HEAD --not $(git -C "$REPO_DIR" tag --merged HEAD --list '[0-9]*'))"
     since_branch="$(git -C "$REPO_DIR" rev-list --count HEAD --not --tags)"
     [[ -n "$branch" ]] || branch="$describe"
     if [[ -z "$since_tag" ]]; then
