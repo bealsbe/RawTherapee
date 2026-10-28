@@ -139,6 +139,7 @@ public:
     Gtk::CheckButton* retinex;
     Gtk::CheckButton* pcvignette;
     Gtk::CheckButton* gradient;
+    Gtk::CheckButton* masking;
     Gtk::CheckButton* labcurve;
     Gtk::CheckButton* colorappearance;
 

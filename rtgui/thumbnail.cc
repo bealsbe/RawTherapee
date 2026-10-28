@@ -700,6 +700,7 @@ void Thumbnail::setProcParams (const ProcParams& pp, ParamsEdited* pe, int whoCh
         || pparams->lensProf != pp.lensProf
         || pparams->perspective != pp.perspective
         || pparams->gradient != pp.gradient
+        || pparams->masking != pp.masking
         || pparams->pcvignette != pp.pcvignette
         || pparams->cacorrection != pp.cacorrection
         || pparams->vignetting != pp.vignetting

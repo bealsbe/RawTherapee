@@ -42,6 +42,7 @@ set(RT_GUI_TOOL_PANEL_SOURCES
     tools/lensgeom.cc
     tools/lensprofile.cc
     tools/localcontrast.cc
+    tools/masking.cc
     tools/locallab.cc
     tools/locallabtools.cc
     tools/locallabtools2.cc

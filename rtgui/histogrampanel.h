@@ -21,6 +21,7 @@
 #include <vector>
 
 #include <gtkmm.h>
+#include <mutex>
 
 #include <glibmm/ustring.h>
 
@@ -154,6 +155,19 @@ protected:
     int waveform_scale;
     array2D<int> rwave, gwave, bwave, lwave;
     MyRWMutex wave_mutex;
+
+    // Copies made by update() on the processing thread, applied by its idle callback.
+    struct PendingScopes {
+        bool valid = false;
+        LUTu rhist, ghist, bhist, lhist, chist;
+        LUTu rhistRaw, ghistRaw, bhistRaw;
+        int vectorscope_scale = 0;
+        array2D<int> vect_hc, vect_hs;
+        int waveform_scale = 0;
+        array2D<int> rwave, gwave, bwave, lwave;
+    };
+    PendingScopes pending;
+    std::mutex pending_mutex;
     std::vector<unsigned char> parade_buffer_r;
     std::vector<unsigned char> parade_buffer_g;
     std::vector<unsigned char> parade_buffer_b;

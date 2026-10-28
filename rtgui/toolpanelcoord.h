@@ -59,6 +59,7 @@
 #include "tools/lensprofile.h"
 #include "tools/localcontrast.h"
 #include "tools/locallab.h"
+#include "tools/masking.h"
 #include "tools/pcvignette.h"
 #include "tools/pdsharpening.h"
 #include "tools/perspective.h"
@@ -113,6 +114,7 @@ class ToolPanelCoordinator :
     public ImageAreaToolListener,
     public rtengine::ImageTypeListener,
     public FilmNegProvider,
+    public MaskingProvider,
     public rtengine::NonCopyable
 {
 protected:
@@ -120,6 +122,7 @@ protected:
     Vignetting* vignetting;
     Gradient* gradient;
     Locallab* locallab;
+    Masking* masking;
     Retinex*  retinex;
     PCVignette* pcvignette;
     LensGeometry* lensgeom;
@@ -279,6 +282,7 @@ public:
         RETINEX_TOOL,
         GRADIENT,
         LOCALLAB,
+        MASKING,
         PC_VIGNETTE,
         PERSPECTIVE,
         CA_CORRECTION,
@@ -433,6 +437,9 @@ public:
 
     // FilmNegProvider interface
     bool getFilmNegativeSpot(rtengine::Coord spot, int spotSize, RGB &refInput, RGB &refOutput) override;
+
+    // MaskingProvider interface
+    bool getMaskingLabSample(rtengine::Coord pos, int size, float& L, float& a, float& b) override;
 
     // rotatelistener interface
     void straightenRequested () override;

@@ -212,6 +212,7 @@ PartialPasteDlg::PartialPasteDlg (const Glib::ustring &title, Gtk::Window* paren
     raw         ->set_name("PartialPasteHeader");
     advanced    = Gtk::manage (new Gtk::CheckButton (M("PARTIALPASTE_ADVANCEDGROUP")));
     advanced    ->set_name("PartialPasteHeader");
+    masking     = Gtk::manage (new Gtk::CheckButton (M("PARTIALPASTE_MASKING")));
     locallab    = Gtk::manage (new Gtk::CheckButton (M("PARTIALPASTE_LOCALLABGROUP")));
     locallab    ->set_name("PartialPasteHeader");
 
@@ -401,6 +402,7 @@ PartialPasteDlg::PartialPasteDlg (const Glib::ustring &title, Gtk::Window* paren
     vboxes[5]->pack_start (*wavelet, Gtk::PACK_SHRINK, 2);
 
     //LOCALLAB
+    vboxes[6]->pack_start(*masking, Gtk::PACK_SHRINK, 2);
     vboxes[6]->pack_start(*locallab, Gtk::PACK_SHRINK, 2);
     vboxes[6]->pack_start(*spots, Gtk::PACK_SHRINK, 2);
     vboxes[6]->pack_start (*hseps[6], Gtk::PACK_SHRINK, 2);
@@ -634,6 +636,7 @@ void PartialPasteDlg::everythingToggled ()
     meta->set_active(everything->get_active());
     raw->set_active(everything->get_active());
     advanced->set_active(everything->get_active());
+    masking->set_active(everything->get_active());
     locallab->set_active(everything->get_active());
 
     //toggle group children
@@ -1261,6 +1264,10 @@ void PartialPasteDlg::applyPaste (rtengine::procparams::ProcParams* dstPP, Param
     }
 
     // Locallab shall be kept in last position
+    if (!masking->get_active ()) {
+        filterPE.masking = falsePE.masking;
+    }
+
     if (!locallab->get_active () && !locallab->get_inconsistent()) {
         filterPE.locallab = falsePE.locallab;
 

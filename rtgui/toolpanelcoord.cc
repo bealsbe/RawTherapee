@@ -182,6 +182,10 @@ const std::vector<ToolTree> ADVANCED_PANEL_TOOLS = {
 
 const std::vector<ToolTree> LOCALLAB_PANEL_TOOLS = {
     {
+        .id = Tool::MASKING,
+        .children = {},
+    },
+    {
         .id = Tool::LOCALLAB,
         .children = {},
     },
@@ -380,6 +384,7 @@ ToolPanelCoordinator::ToolPanelCoordinator (bool batch) : ipc (nullptr), favorit
     retinex             = Gtk::manage(new Retinex());
     gradient            = Gtk::manage(new Gradient());
     locallab            = Gtk::manage(new Locallab());
+    masking             = Gtk::manage(new Masking());
     pcvignette          = Gtk::manage(new PCVignette());
     perspective         = Gtk::manage(new PerspCorrection());
     cacorrection        = Gtk::manage(new CACorrection());
@@ -591,6 +596,7 @@ ToolPanelCoordinator::ToolPanelCoordinator (bool batch) : ipc (nullptr), favorit
     crop->setCropPanelListener(this);
     icm->setICMPanelListener(this);
     filmNegative->setFilmNegProvider(this);
+    masking->setMaskingProvider(this);
 
     toolBar = new ToolBar();
     toolBar->setToolBarListener(this);
@@ -690,6 +696,8 @@ std::string ToolPanelCoordinator::getToolName(Tool tool)
             return Gradient::TOOL_NAME;
         case Tool::LOCALLAB:
             return Locallab::TOOL_NAME;
+        case Tool::MASKING:
+            return Masking::TOOL_NAME;
         case Tool::PC_VIGNETTE:
             return PCVignette::TOOL_NAME;
         case Tool::PERSPECTIVE:
@@ -1158,6 +1166,12 @@ void ToolPanelCoordinator::panelChanged(const rtengine::ProcEvent& event, const 
         }
     }
 
+    // Masks are stored relative to the untransformed image: keep their
+    // on-canvas editing in sync with rotation / flips / lens geometry.
+    if (masking->setGeometry(*params)) {
+        masking->updateGeometry();
+    }
+
     int tr = TR_NONE;
 
     if (params->coarse.rotate == 90) {
@@ -1174,6 +1188,7 @@ void ToolPanelCoordinator::panelChanged(const rtengine::ProcEvent& event, const 
         int fw, fh;
         ipc->getInitialImage()->getImageSource()->getFullSize(fw, fh, tr);
         gradient->updateGeometry(params->gradient.centerX, params->gradient.centerY, params->gradient.feather, params->gradient.degree, fw, fh);
+        masking->updateGeometry();
     }
 
     // some transformations make the crop change for convenience
@@ -1324,6 +1339,7 @@ void ToolPanelCoordinator::profileChange(
     if (event == rtengine::EvPhotoLoaded || event == rtengine::EvProfileChanged || event == rtengine::EvHistoryBrowsed || event == rtengine::EvCTRotate) {
         // updating the "on preview" geometry
         gradient->updateGeometry(params->gradient.centerX, params->gradient.centerY, params->gradient.feather, params->gradient.degree, fw, fh);
+        masking->updateGeometry();
     }
 
     // Reset Locallab mask visibility
@@ -2005,6 +2021,11 @@ bool ToolPanelCoordinator::getFilmNegativeSpot(rtengine::Coord spot, int spotSiz
     return ipc && ipc->getFilmNegativeSpot(spot.x, spot.y, spotSize, refInput, refOutput);
 }
 
+bool ToolPanelCoordinator::getMaskingLabSample(rtengine::Coord pos, int size, float& L, float& a, float& b)
+{
+    return ipc && ipc->getMaskingLabSample(pos.x, pos.y, size, L, a, b);
+}
+
 
 void ToolPanelCoordinator::setProgressListener(rtengine::ProgressListener *pl)
 {
@@ -2068,6 +2089,8 @@ FoldableToolPanel *ToolPanelCoordinator::getFoldableToolPanel(Tool tool) const
             return gradient;
         case Tool::LOCALLAB:
             return locallab;
+        case Tool::MASKING:
+            return masking;
         case Tool::PC_VIGNETTE:
             return pcvignette;
         case Tool::PERSPECTIVE:

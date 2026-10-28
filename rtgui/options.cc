@@ -595,6 +595,10 @@ void Options::setDefaults()
     rtSettings.iccDirectory = "/usr/share/color/icc";
 #endif
     rtSettings.enableLibRaw = true;
+    rtSettings.segmentationEnabled = true;
+    rtSettings.segmentationCommand = "python3";
+    rtSettings.segmentationScript = "";
+    rtSettings.segmentationDevice = "auto";
 //   rtSettings.viewingdevice = 0;
 //   rtSettings.viewingdevicegrey = 3;
     //  rtSettings.viewinggreySc = 1;
@@ -862,6 +866,27 @@ void Options::readFromFile(Glib::ustring fname)
                 if (keyFile.has_key("General", "Verbose")) {
                     rtSettings.verbose = keyFile.get_boolean("General", "Verbose");
                 }
+            }
+
+            if (keyFile.has_group("Segmentation")) {
+                if (keyFile.has_key("Segmentation", "Enabled")) {
+                    rtSettings.segmentationEnabled = keyFile.get_boolean("Segmentation", "Enabled");
+                }
+
+                if (keyFile.has_key("Segmentation", "Command")) {
+                    rtSettings.segmentationCommand = keyFile.get_string("Segmentation", "Command");
+                }
+
+                if (keyFile.has_key("Segmentation", "Script")) {
+                    rtSettings.segmentationScript = keyFile.get_string("Segmentation", "Script");
+                }
+
+                if (keyFile.has_key("Segmentation", "Device")) {
+                    rtSettings.segmentationDevice = keyFile.get_string("Segmentation", "Device");
+                }
+            }
+
+            if (keyFile.has_group("General")) {
 
                 if (keyFile.has_key("General", "Detectshape")) {
                     rtSettings.detectshape = keyFile.get_boolean("General", "Detectshape");
@@ -2450,6 +2475,10 @@ void Options::saveToFile(Glib::ustring fname)
         keyFile.set_string("General", "CameraProfilesPath", rtSettings.cameraProfilesPath);
         keyFile.set_string("General", "LensProfilesPath", rtSettings.lensProfilesPath);
         keyFile.set_boolean("General", "Verbose", rtSettings.verbose);
+        keyFile.set_boolean("Segmentation", "Enabled", rtSettings.segmentationEnabled);
+        keyFile.set_string("Segmentation", "Command", rtSettings.segmentationCommand);
+        keyFile.set_string("Segmentation", "Script", rtSettings.segmentationScript);
+        keyFile.set_string("Segmentation", "Device", rtSettings.segmentationDevice);
         keyFile.set_integer("General", "Cropsleep", rtSettings.cropsleep);
         keyFile.set_double("General", "Reduchigh", rtSettings.reduchigh);
         keyFile.set_double("General", "Reduclow", rtSettings.reduclow);

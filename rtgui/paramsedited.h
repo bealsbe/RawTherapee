@@ -1818,6 +1818,12 @@ struct FilmNegativeParamsEdited {
     bool isUnchanged() const;
 };
 
+struct MaskingParamsEdited {
+    bool enabled;
+    bool masks;     ///< the whole mask list (layers, components, strokes) is treated as one value
+    bool showMask;
+};
+
 struct ParamsEdited {
     GeneralParamsEdited general;
     ToneCurveParamsEdited toneCurve;
@@ -1861,6 +1867,7 @@ struct ParamsEdited {
     ResizeParamsEdited resize;
     FramingParamsEdited framing;
     SpotParamsEdited spot;
+    MaskingParamsEdited masking;
     ColorManagementParamsEdited icm;
     RAWParamsEdited raw;
     DirPyrEqualizerParamsEdited dirpyrequalizer;

@@ -681,6 +681,9 @@ void ParamsEdited::set(bool v)
 
     spot.enabled = v;
     spot.entries = v;
+    masking.enabled = v;
+    masking.masks = v;
+    masking.showMask = v;
 
     icm.inputProfile = v;
     icm.toneCurve = v;
@@ -2360,6 +2363,9 @@ void ParamsEdited::initFrom(const std::vector<rtengine::procparams::ProcParams>&
 
         spot.enabled = spot.enabled && p.spot.enabled == other.spot.enabled;
         spot.entries = spot.entries && p.spot.entries == other.spot.entries;
+        masking.enabled = masking.enabled && p.masking.enabled == other.masking.enabled;
+        masking.masks = masking.masks && p.masking.masks == other.masking.masks;
+        masking.showMask = masking.showMask && p.masking.showMask == other.masking.showMask && p.masking.showComponent == other.masking.showComponent;
         icm.inputProfile = icm.inputProfile && p.icm.inputProfile == other.icm.inputProfile;
         icm.toneCurve = icm.toneCurve && p.icm.toneCurve == other.icm.toneCurve;
         icm.applyLookTable = icm.applyLookTable && p.icm.applyLookTable == other.icm.applyLookTable;
@@ -7518,6 +7524,19 @@ void ParamsEdited::combine(rtengine::procparams::ProcParams& toEdit, const rteng
 
     if (spot.entries) {
         toEdit.spot.entries   = mods.spot.entries;
+    }
+
+    if (masking.enabled) {
+        toEdit.masking.enabled = mods.masking.enabled;
+    }
+
+    if (masking.masks) {
+        toEdit.masking.masks = mods.masking.masks;
+    }
+
+    if (masking.showMask) {
+        toEdit.masking.showMask = mods.masking.showMask;
+        toEdit.masking.showComponent = mods.masking.showComponent;
     }
 
     if (pcvignette.enabled) {

@@ -57,11 +57,14 @@ void CursorManager::init (Glib::RefPtr<Gdk::Window> mainWindow)
 
     cAdd        = createCursor("crosshair-hicontrast", Gdk::PLUS);
     cAddPicker  = createCursor("color-picker-add-hicontrast", Gdk::PLUS, -0.666, 0.75);
+    cBrush      = createCursor("brush-cursor-hicontrast", Gdk::PENCIL, -0.9, 0.9);
     cCropDraw   = createCursor("crop-point-hicontrast", Gdk::DIAMOND_CROSS, -0.75, 0.75);
     cCrosshair  = createCursor("crosshair-hicontrast", Gdk::CROSSHAIR);
     cEmpty      = createCursor("empty", Gdk::BLANK_CURSOR);
+    cEraser     = createCursor("eraser-cursor-hicontrast", Gdk::PENCIL, -0.9, 0.9);
     cHandClosed = createCursor("hand-closed-hicontrast", Gdk::HAND1);
     cHandOpen   = createCursor("hand-open-hicontrast", Gdk::HAND2);
+    cLasso      = createCursor("lasso-cursor-hicontrast", Gdk::PENCIL, -0.9, 0.9);
     cMoveBL     = createCursor("node-move-sw-ne-hicontrast", Gdk::BOTTOM_LEFT_CORNER);
     cMoveBR     = createCursor("node-move-nw-se-hicontrast", Gdk::BOTTOM_RIGHT_CORNER);
     cMoveL      = createCursor("node-move-x-hicontrast", Gdk::SB_LEFT_ARROW);
@@ -72,6 +75,8 @@ void CursorManager::init (Glib::RefPtr<Gdk::Window> mainWindow)
     cMoveXY     = createCursor("node-move-xy-hicontrast", Gdk::FLEUR);
     cMoveY      = createCursor("node-move-y-hicontrast", Gdk::SB_V_DOUBLE_ARROW);
     cRotate     = createCursor("rotate-aroundnode-hicontrast", Gdk::EXCHANGE);
+    cWand       = createCursor("wand-cursor-hicontrast", Gdk::TARGET, -0.9, -0.9);
+    cQuickSelect = createCursor("quickselect-cursor-hicontrast", Gdk::PENCIL, -0.4167, -0.4167);
     cWB         = createCursor("color-picker-hicontrast", Gdk::TARGET, -0.666, 0.75);
     cWait       = createCursor("gears", Gdk::CLOCK);
 
@@ -86,6 +91,9 @@ void CursorManager::setCursor (Glib::RefPtr<Gdk::Window> window, CursorShape sha
         case CursorShape::CSAddColPicker:
             window->set_cursor(cAddPicker);
             break;
+        case CursorShape::CSBrush:
+            window->set_cursor(cBrush);
+            break;
         case CursorShape::CSArrow:
             window->set_cursor(); // set_cursor without any arguments to select system default
             break;
@@ -95,11 +103,23 @@ void CursorManager::setCursor (Glib::RefPtr<Gdk::Window> window, CursorShape sha
         case CursorShape::CSCrosshair:
             window->set_cursor(cCrosshair);
             break;
+        case CursorShape::CSEraser:
+            window->set_cursor(cEraser);
+            break;
         case CursorShape::CSEmpty:
             window->set_cursor(cEmpty);
             break;
         case CursorShape::CSHandClosed:
             window->set_cursor(cHandClosed);
+            break;
+        case CursorShape::CSLasso:
+            window->set_cursor(cLasso);
+            break;
+        case CursorShape::CSWand:
+            window->set_cursor(cWand);
+            break;
+        case CursorShape::CSQuickSelect:
+            window->set_cursor(cQuickSelect);
             break;
         case CursorShape::CSHandOpen:
             window->set_cursor(cHandOpen);

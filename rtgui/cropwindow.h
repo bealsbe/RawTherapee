@@ -73,6 +73,7 @@ class CropWindow final : public LWButtonListener, public CropDisplayHandler, pub
     double rot_deg;
     bool onResizeArea;
     bool deleted;
+    bool middleButtonPan;               // SCropImgMove was started with the middle mouse button
     bool fitZoomEnabled;
     bool fitZoom;
     //bool isLowUpdatePriority;

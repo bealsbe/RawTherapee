@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="24px" height="24px" viewBox="0 0 24 24" version="1.1" id="SVGRoot" xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg">
+  <!-- Quick selection cursor for the Masks tool. Hotspot is the brush tip (7, 7), inside the dashed selection ring. -->
+  <g id="layer1">
+    <!-- selection ring: black halo under a white dashed ring -->
+    <circle cx="7" cy="7" r="5.6" style="fill:none;stroke:#000000;stroke-width:2.6" />
+    <circle cx="7" cy="7" r="5.6" style="fill:none;stroke:#ffffff;stroke-width:1.2;stroke-dasharray:2.4,1.5" />
+    <!-- bristles, tip at the hotspot -->
+    <path style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-linejoin:round" d="M 7,7 C 8.2,9.6 9.6,11.8 11.6,13.6 L 13.6,11.6 C 11.8,9.6 9.6,8.2 7,7 Z" />
+    <!-- handle -->
+    <path style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-linejoin:round" d="M 12.3,14.3 14.3,12.3 22.6,20.6 20.6,22.6 Z" />
+  </g>
+</svg>

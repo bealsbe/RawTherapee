@@ -1685,6 +1685,42 @@ HISTORY_MSG_LOCAL_SIGQ12;Local - CIECAM Sigmoid Q and Slope based
 HISTORY_MSG_LOCAL_SIGSENSICIE;Local - CIECAM Adaptability 5.11
 HISTORY_MSG_LOCAL_SIGTHCIE;Local - CIECAM Threshold 5.11
 HISTORY_MSG_LOCAL_TMO_SATUR;Local Exp Fattal Saturation
+HISTORY_MSG_MASKING_AMOUNT;Masks - Amount
+HISTORY_MSG_MASKING_BLACKS;Masks - Blacks
+HISTORY_MSG_MASKING_CLARITY;Masks - Clarity
+HISTORY_MSG_MASKING_COMPONENT;Masks - Component
+HISTORY_MSG_MASKING_COMPONENT_LIST;Masks - Component list
+HISTORY_MSG_MASKING_CONTRAST;Masks - Contrast
+HISTORY_MSG_MASKING_CURVE_A;Masks - a* curve
+HISTORY_MSG_MASKING_CURVE_B;Masks - b* curve
+HISTORY_MSG_MASKING_CURVE_CC;Masks - CC curve
+HISTORY_MSG_MASKING_CURVE_CH;Masks - CH curve
+HISTORY_MSG_MASKING_CURVE_CL;Masks - CL curve
+HISTORY_MSG_MASKING_CURVE_HH;Masks - HH curve
+HISTORY_MSG_MASKING_CURVE_L;Masks - L* curve
+HISTORY_MSG_MASKING_CURVE_LC;Masks - LC curve
+HISTORY_MSG_MASKING_CURVE_LH;Masks - LH curve
+HISTORY_MSG_MASKING_ENABLED;Masks
+HISTORY_MSG_MASKING_EXPAND;Masks - Expand/contract
+HISTORY_MSG_MASKING_EXPOSURE;Masks - Exposure
+HISTORY_MSG_MASKING_FEATHER;Masks - Feather
+HISTORY_MSG_MASKING_HIGHLIGHTS;Masks - Highlights
+HISTORY_MSG_MASKING_HUE;Masks - Hue
+HISTORY_MSG_MASKING_LAYER;Masks - Mask
+HISTORY_MSG_MASKING_LIST;Masks - Mask list
+HISTORY_MSG_MASKING_MIDTONES;Masks - Midtones
+HISTORY_MSG_MASKING_POLYGON;Masks - Lasso
+HISTORY_MSG_MASKING_SAMPLE;Masks - Color sample
+HISTORY_MSG_MASKING_SATURATION;Masks - Saturation
+HISTORY_MSG_MASKING_SEEDS;Masks - Magic wand
+HISTORY_MSG_MASKING_SHADOWS;Masks - Shadows
+HISTORY_MSG_MASKING_SHAPE;Masks - Shape
+HISTORY_MSG_MASKING_SHOWMASK;Masks - Show mask
+HISTORY_MSG_MASKING_SMOOTH;Masks - Smooth
+HISTORY_MSG_MASKING_STROKE;Masks - Brush stroke
+HISTORY_MSG_MASKING_TEMPERATURE;Masks - Temperature
+HISTORY_MSG_MASKING_TINT;Masks - Tint
+HISTORY_MSG_MASKING_WHITES;Masks - Whites
 HISTORY_MSG_METADATA_MODE;Metadata copy mode
 HISTORY_MSG_MICROCONTRAST_CONTRAST;Microcontrast - Contrast threshold
 HISTORY_MSG_PDSHARPEN_AUTO_CONTRAST;CS - Auto threshold
@@ -2032,6 +2068,7 @@ PARTIALPASTE_LENSPROFILE;Profiled lens correction
 PARTIALPASTE_LOCALCONTRAST;Local contrast
 PARTIALPASTE_LOCALLAB;Selective Editing
 PARTIALPASTE_LOCALLABGROUP;Selective Editing Settings
+PARTIALPASTE_MASKING;Masks
 PARTIALPASTE_METADATA;Metadata mode
 PARTIALPASTE_METAGROUP;Metadata settings
 PARTIALPASTE_PCVIGNETTE;Vignette filter
@@ -4158,6 +4195,171 @@ TP_LOCAL_HEIGHT_T;Top
 TP_LOCAL_WIDTH;Right
 TP_LOCAL_WIDTH_L;Left
 TP_LOCRETI_METHOD_TOOLTIP;Low = Reinforce low light.\nUniform = Evenly distributed.\nHigh = Reinforce strong light.
+TP_MASKING_ACTIVE_TOOL;Active tool:
+TP_MASKING_ADJUSTMENTS;Adjustments
+TP_MASKING_AI_BUSY;Computing AI mask... The first use loads the model, which can take 10-20 seconds.
+TP_MASKING_AI_COMPUTING;Computing mask...
+TP_MASKING_AI_ERROR;Segmentation error: %1
+TP_MASKING_AI_HINT;Click on the image to tell the segmentation provider which object to select.
+TP_MASKING_AI_PROMPT;Concept
+TP_MASKING_AI_PROMPT_PLACEHOLDER;e.g. person, animal, car, tree (empty = default for the type)
+TP_MASKING_AI_PROMPT_TOOLTIP;What to select. Free text with SAM 3 (concept prompt); an ADE20K class name such as person, animal, car, tree, water or building with SAM 2.1 + SegFormer. Press Enter to apply.
+TP_MASKING_AI_PROVIDER;Provider
+TP_MASKING_AI_PROVIDER_TOOLTIP;Segmentation model used for this component. Greyed entries cannot run on this machine.
+TP_MASKING_AI_PROVIDER_UNAVAILABLE;%1 cannot be used: %2
+TP_MASKING_AI_REFINE;Refine edges (matting)
+TP_MASKING_AI_REFINE_TOOLTIP;Re-estimates the mask edges with a matting model (ViTMatte) so that hair, fur and foliage get soft, accurate alpha. Costs about 0.1 s per mask on a GPU, a few seconds on a CPU.
+TP_MASKING_AI_REFINE_HINT;Refine: use the Brush below to paint on or erase from this selection, or add a Lasso / Rectangle / Wand with Add or Subtract, then Expand, Smooth and Feather.
+TP_MASKING_AI_THRESHOLD;Threshold
+TP_MASKING_AMOUNT;Amount
+TP_MASKING_BLACKS;Blacks
+TP_MASKING_BRUSH_CLEAR;Clear strokes
+TP_MASKING_BRUSH_ERASE_TOOLTIP;Eraser: strokes remove from the mask, including areas selected by other tools. You can also hold Alt while painting.
+TP_MASKING_BRUSH_FRAME;Brush: paint on or erase from this mask
+TP_MASKING_BRUSH_OPACITY_TOOLTIP;Strength of one stroke. Below 100 repeated strokes build up (or, with the eraser, thin out) the selection gradually.
+TP_MASKING_BRUSH_FEATHER;Feather
+TP_MASKING_BRUSH_OPACITY;Opacity
+TP_MASKING_BRUSH_PAINT_TOOLTIP;Paint: strokes add to the mask.
+TP_MASKING_BRUSH_SIZE;Size
+TP_MASKING_BRUSH_SIZE_TOOLTIP;Brush radius in percent of the image diagonal.
+TP_MASKING_CLARITY;Clarity
+TP_MASKING_CLEAR_MASK_TOOLTIP;Clear this mask (remove everything drawn or selected on it).
+TP_MASKING_COLOR_SAMPLE;Sampled color: L*=%1 a*=%2 b*=%3
+TP_MASKING_COLOR_SMOOTHNESS;Smoothness
+TP_MASKING_COLOR_TOLERANCE;Tolerance
+TP_MASKING_COMPONENTS;Components
+TP_MASKING_CONTRAST;Contrast
+TP_MASKING_COPY_NAME;%1 (copy)
+TP_MASKING_CURVES;Curves
+TP_MASKING_CURVE_LC_TOOLTIP;Luminance according to chromaticity L=f(C). Acts on all hues: the mask decides where it applies.
+TP_MASKING_DEFAULT_NAME;Mask %1
+TP_MASKING_DUPLICATE_MASK_TOOLTIP;Duplicate the selected mask. The copy starts with neutral adjustments.
+TP_MASKING_EDITED;Mask list edited
+TP_MASKING_EDIT_TOOLTIP;Edit the selected component on the preview: paint brush strokes, drag gradient handles or pick a color / object.
+TP_MASKING_EMPTY;(empty)
+TP_MASKING_EXPAND;Expand / contract
+TP_MASKING_EXPAND_TOOLTIP;Grows (positive) or shrinks (negative) the whole mask.
+TP_MASKING_EXPOSURE;Exposure
+TP_MASKING_FEATHER;Feather
+TP_MASKING_HIGHLIGHTS;Highlights
+TP_MASKING_HINT_BRUSH;Drag on the preview to paint onto this mask; hold Alt (or pick the eraser) to erase from it. Size, feather and opacity apply to the next stroke.
+TP_MASKING_HINT_COLOR;Click on the preview to sample the reference color.
+TP_MASKING_HINT_LASSO;Freehand: drag around the area. Polygonal: click vertices, click the first one (or Close) to finish. Shift / Alt while starting set Add / Subtract.
+TP_MASKING_HINT_LINEAR;Drag on the preview to draw a new gradient, or move its two handles.
+TP_MASKING_HINT_NONE;This component has no on-preview controls.
+TP_MASKING_HINT_OBJECT;Click on the preview to point at the object to select.
+TP_MASKING_HINT_QUICKSELECT;Drag over the area to select: the selection grows from the brushed pixels over similar, connected pixels up to the edges in the image. Hold Alt (or switch on Subtract) to take areas back out.
+TP_MASKING_HINT_RADIAL;Drag on the preview to draw a new ellipse, or move its center and radius handles.
+TP_MASKING_HINT_RECT;Drag on the preview to draw a rectangle, or move its corners and center. Shift / Alt while starting a new shape set Add / Subtract.
+TP_MASKING_HINT_SET;Object hint
+TP_MASKING_HINT_WAND;Click a color to select similar pixels. Shift-click adds seeds, drag adds seeds along the path, Alt-click removes the nearest seed.
+TP_MASKING_HUE;Hue
+TP_MASKING_INTENT_ADD;Add
+TP_MASKING_INTENT_ADD_TOOLTIP;The next tool you pick adds to the selected mask.
+TP_MASKING_INTENT_HINT_ADD;Pick a tool to add to "%1".
+TP_MASKING_INTENT_HINT_INTERSECT;Pick a tool to intersect with "%1".
+TP_MASKING_INTENT_HINT_NEW;Pick a tool to create a new mask.
+TP_MASKING_INTENT_HINT_SUBTRACT;Pick a tool to subtract from "%1".
+TP_MASKING_INTENT_INTERSECT;Intersect
+TP_MASKING_INTENT_INTERSECT_TOOLTIP;The next tool you pick keeps only where it overlaps the selected mask.
+TP_MASKING_INTENT_NEW;New mask
+TP_MASKING_INTENT_NEW_TOOLTIP;The next tool you pick creates a new mask.
+TP_MASKING_INTENT_SUBTRACT;Subtract
+TP_MASKING_INTENT_SUBTRACT_TOOLTIP;The next tool you pick removes from the selected mask.
+TP_MASKING_INVERT;Invert
+TP_MASKING_INVERT_MASK;Invert mask
+TP_MASKING_LABEL;Masks
+TP_MASKING_LIST_NAME;Name
+TP_MASKING_LIST_OP;Mode
+TP_MASKING_LIST_SUMMARY;Components
+TP_MASKING_LIST_TYPE;Type
+TP_MASKING_LUM_FEATHER_HIGH;Feather above
+TP_MASKING_LUM_FEATHER_LOW;Feather below
+TP_MASKING_LUM_HIGH;Upper luminance
+TP_MASKING_LUM_LOW;Lower luminance
+TP_MASKING_MASK_ENABLED;Enabled
+TP_MASKING_MASK_FRAME;Mask
+TP_MASKING_MASK_NAME;Mask name
+TP_MASKING_MIDTONES;Midtones
+TP_MASKING_NO_TOOL_SELECTED;Nothing drawn on this mask yet. Pick a tool in the palette.
+TP_MASKING_OP_ADD;Add
+TP_MASKING_OP_INTERSECT;Intersect
+TP_MASKING_OP_SUBTRACT;Subtract
+TP_MASKING_OP_TOOLTIP;How this component is combined with the components above it.
+TP_MASKING_POLY_CLEAR;Clear
+TP_MASKING_POLY_CLOSE;Close
+TP_MASKING_POLY_EVENODD;Even-odd fill
+TP_MASKING_POLY_EVENODD_TOOLTIP;Self-intersecting outlines: alternate filled and unfilled regions instead of filling everything inside.
+TP_MASKING_POLY_FEATHER;Feather
+TP_MASKING_POLY_FREEHAND;Freehand
+TP_MASKING_POLY_FREEHAND_TOOLTIP;Freehand lasso: drag around the area to select. Click again to switch the lasso off.
+TP_MASKING_POLY_POINT_COUNT;%1 point(s)
+TP_MASKING_POLY_POLYGONAL;Polygonal
+TP_MASKING_POLY_POLYGONAL_TOOLTIP;Polygonal lasso: click to add vertices, click the first vertex or Close to finish. Click again to switch the lasso off.
+TP_MASKING_QUICKSELECT_EDGE;Edge sensitivity
+TP_MASKING_QUICKSELECT_EDGE_TOOLTIP;How strongly edges in the image stop the growth. Lower values let the selection flow across weak edges.
+TP_MASKING_QUICKSELECT_SIZE;Brush size
+TP_MASKING_QUICKSELECT_SIZE_TOOLTIP;Size of the quick selection brush, in percent of the image diagonal. Applies to the next stroke.
+TP_MASKING_QUICKSELECT_SMOOTHNESS;Smoothness
+TP_MASKING_QUICKSELECT_SUBTRACT;Subtract
+TP_MASKING_QUICKSELECT_SUBTRACT_TOOLTIP;Strokes take areas out of the selection (same as holding Alt while dragging).
+TP_MASKING_QUICKSELECT_TOLERANCE;Tolerance
+TP_MASKING_QUICKSELECT_TOLERANCE_TOOLTIP;How far the selection grows from the brushed pixels over similar colors.
+TP_MASKING_RADIAL_ANGLE;Angle
+TP_MASKING_RADIAL_FEATHER;Feather
+TP_MASKING_RECT_ANGLE;Angle
+TP_MASKING_RECT_CORNER;Corner rounding
+TP_MASKING_RECT_FEATHER;Feather
+TP_MASKING_REMOVE_COMPONENT_TOOLTIP;Remove the selected component.
+TP_MASKING_REMOVE_MASK_TOOLTIP;Remove the selected mask.
+TP_MASKING_SATURATION;Saturation
+TP_MASKING_SELECTED_TOOL;Active tool
+TP_MASKING_SHADOWS;Shadows
+TP_MASKING_SHAPE_CHANGED;Shape
+TP_MASKING_SHOW_COMPONENT;Active tool only
+TP_MASKING_SHOW_MASK;Show mask
+TP_MASKING_SMOOTH;Smooth
+TP_MASKING_SMOOTH_TOOLTIP;Rounds off jagged mask edges and removes small specks.
+TP_MASKING_STROKE_COUNT;%1 stroke(s)
+TP_MASKING_TEMPERATURE;Temperature
+TP_MASKING_TINT;Tint
+TP_MASKING_TOOLS;Tools
+TP_MASKING_TOOL_BACKGROUND;Background
+TP_MASKING_TOOL_BRUSH;Brush
+TP_MASKING_TOOL_COLOR;Color
+TP_MASKING_TOOL_COUNT;%1 tool(s)
+TP_MASKING_TOOL_ERASER;Eraser
+TP_MASKING_TOOL_LASSO;Lasso
+TP_MASKING_TOOL_LINEAR;Linear
+TP_MASKING_TOOL_LUMINANCE;Luminance
+TP_MASKING_TOOL_OBJECT;Object
+TP_MASKING_TOOL_QUICKSELECT;Quick select
+TP_MASKING_TOOL_RADIAL;Radial
+TP_MASKING_TOOL_RECT;Rectangle
+TP_MASKING_TOOL_SKY;Sky
+TP_MASKING_TOOL_SUBJECT;Subject
+TP_MASKING_TOOL_WAND;Wand
+TP_MASKING_TYPE_AI_BACKGROUND;Background (AI)
+TP_MASKING_TYPE_AI_OBJECT;Object (AI)
+TP_MASKING_TYPE_AI_SKY;Sky (AI)
+TP_MASKING_TYPE_AI_SUBJECT;Subject (AI)
+TP_MASKING_TYPE_BRUSH;Brush
+TP_MASKING_TYPE_COLOR;Color range
+TP_MASKING_TYPE_LINEAR;Linear gradient
+TP_MASKING_TYPE_LUMINANCE;Luminance range
+TP_MASKING_TYPE_POLYGON;Lasso / polygon
+TP_MASKING_TYPE_QUICKSELECT;Quick selection
+TP_MASKING_TYPE_RADIAL;Radial gradient
+TP_MASKING_TYPE_RECTANGLE;Rectangle
+TP_MASKING_TYPE_WAND;Magic wand
+TP_MASKING_UNDO_TOOL_TOOLTIP;Undo the last tool used on this mask.
+TP_MASKING_WAND_CLEAR;Clear seeds
+TP_MASKING_WAND_CONTIGUOUS;Contiguous
+TP_MASKING_WAND_CONTIGUOUS_TOOLTIP;Select only the connected area around the seeds; off selects every similar color in the image.
+TP_MASKING_WAND_SEED_COUNT;%1 seed(s)
+TP_MASKING_WAND_SMOOTHNESS;Smoothness
+TP_MASKING_WAND_TOLERANCE;Tolerance
+TP_MASKING_WHITES;Whites
 TP_METADATA_EDIT;Apply modifications
 TP_METADATA_MODE;Metadata copy mode
 TP_METADATA_STRIP;Strip all metadata

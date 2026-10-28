@@ -119,6 +119,8 @@ Glib::ustring getToolTitleKey(Tool tool)
             return "TP_GRADIENT_LABEL";
         case Tool::LOCALLAB:
             return "TP_LOCALLAB_LABEL";
+        case Tool::MASKING:
+            return "TP_MASKING_LABEL";
         case Tool::PC_VIGNETTE:
             return "TP_PCVIGNETTE_LABEL";
         case Tool::PERSPECTIVE:

@@ -17,6 +17,8 @@
  *  along with RawTherapee.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "histogrampanel.h"
+
+#include <mutex>
 #include "multilangmgr.h"
 #include "guiutils.h"
 #include "options.h"
@@ -1143,22 +1145,49 @@ void HistogramArea::update(
     const array2D<int>& waveformLuma
 )
 {
-    // Note: This function is called outside of GUI threads
-    idle_register.add(
-        [this, &histRed, &histGreen, &histBlue, &histLuma, &histChroma, &histRedRaw,
-                &histGreenRaw, &histBlueRaw, vectorscopeScale, &vectorscopeHC,
-                &vectorscopeHS, waveformScale, &waveformRed, &waveformGreen,
-                &waveformBlue, &waveformLuma]() -> bool {
-        GThreadLock lock; // All GUI access from idle_add callbacks or separate thread HAVE to be protected
+    // Note: This function is called outside of GUI threads, by the processing
+    // thread that owns the arrays. Copy them now: an idle callback that kept
+    // references would read them on the GUI thread while the next processing
+    // pass refills or resizes them, or after the image was closed and they
+    // were freed (crash in the idle callback).
+    {
+        std::lock_guard<std::mutex> lock(pending_mutex);
+        pending.valid = bool(histRed);
 
-        if (histRed) {
+        if (pending.valid) {
+            pending.rhist = histRed;
+            pending.ghist = histGreen;
+            pending.bhist = histBlue;
+            pending.lhist = histLuma;
+            pending.chist = histChroma;
+            pending.vectorscope_scale = vectorscopeScale;
+            pending.vect_hc = vectorscopeHC;
+            pending.vect_hs = vectorscopeHS;
+            pending.waveform_scale = waveformScale;
+            pending.rwave = waveformRed;
+            pending.gwave = waveformGreen;
+            pending.bwave = waveformBlue;
+            pending.lwave = waveformLuma;
+            // Raw histogram data are always provided
+            pending.rhistRaw = histRedRaw;
+            pending.ghistRaw = histGreenRaw;
+            pending.bhistRaw = histBlueRaw;
+        }
+    }
+
+    idle_register.add(
+        [this]() -> bool {
+        GThreadLock lock; // All GUI access from idle_add callbacks or separate thread HAVE to be protected
+        std::lock_guard<std::mutex> plock(pending_mutex);
+
+        if (pending.valid) {
             switch (scopeType) {
                 case ScopeType::HISTOGRAM:
-                    rhist = histRed;
-                    ghist = histGreen;
-                    bhist = histBlue;
-                    lhist = histLuma;
-                    chist = histChroma;
+                    rhist = pending.rhist;
+                    ghist = pending.ghist;
+                    bhist = pending.bhist;
+                    lhist = pending.lhist;
+                    chist = pending.chist;
                     break;
                 case ScopeType::HISTOGRAM_RAW:
                     // Raw histogram data are always provided (refer below)
@@ -1166,31 +1195,31 @@ void HistogramArea::update(
                 case ScopeType::PARADE:
                 case ScopeType::WAVEFORM: {
                     MYWRITERLOCK(wave_lock, wave_mutex)
-                    waveform_scale = waveformScale;
-                    rwave = waveformRed;
-                    gwave = waveformGreen;
-                    bwave = waveformBlue;
-                    lwave = waveformLuma;
+                    waveform_scale = pending.waveform_scale;
+                    rwave = pending.rwave;
+                    gwave = pending.gwave;
+                    bwave = pending.bwave;
+                    lwave = pending.lwave;
                     parade_buffer_r_dirty = parade_buffer_g_dirty = parade_buffer_b_dirty = wave_buffer_dirty = wave_buffer_luma_dirty = true;
                     break;
                 }
                 case ScopeType::VECTORSCOPE_HS:
-                    vectorscope_scale = vectorscopeScale;
-                    vect_hs = vectorscopeHS;
+                    vectorscope_scale = pending.vectorscope_scale;
+                    vect_hs = pending.vect_hs;
                     vect_hs_buffer_dirty = true;
                     break;
                 case ScopeType::VECTORSCOPE_HC:
-                    vectorscope_scale = vectorscopeScale;
-                    vect_hc = vectorscopeHC;
+                    vectorscope_scale = pending.vectorscope_scale;
+                    vect_hc = pending.vect_hc;
                     vect_hc_buffer_dirty = true;
                     break;
                 case ScopeType::NONE:
                     break;
             }
             // Raw histogram data are always provided
-            rhistRaw = histRedRaw;
-            ghistRaw = histGreenRaw;
-            bhistRaw = histBlueRaw;
+            rhistRaw = pending.rhistRaw;
+            ghistRaw = pending.ghistRaw;
+            bhistRaw = pending.bhistRaw;
 
             LUT_valid = true;
         } else {

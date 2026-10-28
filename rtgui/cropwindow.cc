@@ -80,7 +80,7 @@ Glib::ustring CropWindow::zoom100tt;
 Glib::ustring CropWindow::closett;
 
 CropWindow::CropWindow (ImageArea* parent, bool isLowUpdatePriority_, bool isDetailWindow)
-    : ObjectMOBuffer(parent), state(SNormal), press_x(0), press_y(0), action_x(0), action_y(0), pickedObject(-1), pickModifierKey(0), rot_deg(0), onResizeArea(false), deleted(false),
+    : ObjectMOBuffer(parent), state(SNormal), press_x(0), press_y(0), action_x(0), action_y(0), pickedObject(-1), pickModifierKey(0), rot_deg(0), onResizeArea(false), deleted(false), middleButtonPan(false),
       fitZoomEnabled(true), fitZoom(false), cursor_type(CSArrow), /*isLowUpdatePriority(isLowUpdatePriority_),*/ hoveredPicker(nullptr), cropLabel(Glib::ustring("100%")),
       backColor(App::get().options().bgcolor), decorated(true), isFlawnOver(false), titleHeight(30), sideBorderWidth(3), lowerBorderWidth(3),
       upperBorderWidth(1), sepWidth(2), windowPos(30, 30), windowSize(0, 0), imgAreaPos(0, 0), imgAreaSize(0, 0),
@@ -630,6 +630,16 @@ void CropWindow::buttonPress (int button, int type, int bstate, int x, int y)
                 action_y = 0;
             }
         }
+
+        // Middle button drag pans the image, unless an edit tool claimed the click
+        if (type == GDK_BUTTON_PRESS && state == SNormal && onArea (CropImage, x, y)) {
+            state = SCropImgMove;
+            middleButtonPan = true;
+            press_x = x;
+            press_y = y;
+            action_x = 0;
+            action_y = 0;
+        }
     } else if (button == 3) {
         if (iarea->getToolMode () == TMHand || iarea->getToolMode() == TMPerspective) {
             EditSubscriber *editSubscriber = iarea->getCurrSubscriber();
@@ -698,6 +708,11 @@ void CropWindow::buttonRelease (int button, int num, int bstate, int x, int y)
 
     bool needRedraw = false;
 
+    // A pan only ends when the button that started it is released
+    if (state == SCropImgMove && middleButtonPan != (button == 2)) {
+        return;
+    }
+
     if (state == SCropWinResize) {
         int newWidth = press_x + x - action_x;
         int newHeight = press_y + y - action_y;
@@ -727,6 +742,7 @@ void CropWindow::buttonRelease (int button, int num, int bstate, int x, int y)
         cropHandler.update ();
 
         state = SNormal;
+        middleButtonPan = false;
 
         for (std::list<CropWindowListener*>::iterator i = listeners.begin(); i != listeners.end(); ++i) {
             (*i)->cropPositionChanged (this);

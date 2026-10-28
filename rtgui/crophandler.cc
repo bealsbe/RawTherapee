@@ -18,6 +18,9 @@
  */
 #include "crophandler.h"
 
+#include <cstdlib>
+#include <cstdio>
+
 #include <cstring>
 #include "guiutils.h"
 #include "cropwindow.h"
@@ -337,6 +340,14 @@ void CropHandler::setDetailedCrop(
     received.width = aw;
     received.height = ah;
     received.scale = askip;
+
+    if (std::getenv("RT_MASK_SELFTEST")) {
+        unsigned long long h = 1469598103934665603ULL;
+        const unsigned char* d = im->getData();
+        for (size_t i = 0, n = size_t(im->getWidth()) * im->getHeight() * 3; i < n; i += 97) { h = (h ^ d[i]) * 1099511628211ULL; }
+        printf("[crop] %dx%d skip %d accepted=%d hash %llx\n", im->getWidth(), im->getHeight(), askip, int(acceptUpdate(received)), h);
+        fflush(stdout);
+    }
 
     if (acceptUpdate(received)) {
         cropimg_width = im->getWidth ();

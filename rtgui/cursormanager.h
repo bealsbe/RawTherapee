@@ -23,11 +23,14 @@
 enum CursorShape {
     CSAddColPicker,
     CSArrow,
+    CSBrush,
     CSCropSelect,
     CSCrosshair,
     CSEmpty,
+    CSEraser,
     CSHandClosed,
     CSHandOpen,
+    CSLasso,
     CSMove,
     CSMove1DH,
     CSMove1DV,
@@ -46,6 +49,8 @@ enum CursorShape {
     CSSpotWB,
     CSStraighten,
     CSUndefined,
+    CSWand,
+    CSQuickSelect,
     CSWait
 };
 
@@ -55,11 +60,14 @@ class CursorManager
 private:
     Glib::RefPtr<Gdk::Cursor> cAdd;
     Glib::RefPtr<Gdk::Cursor> cAddPicker;
+    Glib::RefPtr<Gdk::Cursor> cBrush;
     Glib::RefPtr<Gdk::Cursor> cCropDraw;
     Glib::RefPtr<Gdk::Cursor> cCrosshair;
     Glib::RefPtr<Gdk::Cursor> cHandClosed;
     Glib::RefPtr<Gdk::Cursor> cHandOpen;
+    Glib::RefPtr<Gdk::Cursor> cLasso;
     Glib::RefPtr<Gdk::Cursor> cEmpty;
+    Glib::RefPtr<Gdk::Cursor> cEraser;
     Glib::RefPtr<Gdk::Cursor> cMoveBL;
     Glib::RefPtr<Gdk::Cursor> cMoveBR;
     Glib::RefPtr<Gdk::Cursor> cMoveL;
@@ -70,6 +78,8 @@ private:
     Glib::RefPtr<Gdk::Cursor> cMoveY;
     Glib::RefPtr<Gdk::Cursor> cMoveXY;
     Glib::RefPtr<Gdk::Cursor> cRotate;
+    Glib::RefPtr<Gdk::Cursor> cWand;
+    Glib::RefPtr<Gdk::Cursor> cQuickSelect;
     Glib::RefPtr<Gdk::Cursor> cWB;
     Glib::RefPtr<Gdk::Cursor> cWait;
 
