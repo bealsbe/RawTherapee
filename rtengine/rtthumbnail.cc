@@ -1881,6 +1881,7 @@ IImage8* Thumbnail::processImage (const procparams::ProcParams& params, eSensorT
 
     ipf.vibrance (labView, params.vibrance, params.toneCurve.hrenabled, params.icm.workingProfile);
     ipf.labColorCorrectionRegions(labView);
+    ipf.maskedAdjustments(labView, 0, 0, fw, fh, ImProcFunctions::MaskingContext::THUMBNAIL);
 
 
 

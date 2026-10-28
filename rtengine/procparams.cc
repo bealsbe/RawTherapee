@@ -19,7 +19,9 @@
 
 #include "procparams.h"
 
+#include <array>
 #include <memory>
+#include <utility>
 
 #include <locale.h>
 
@@ -103,6 +105,304 @@ bool saveRgbToKeyfile(
         return true;
     }
     return false;
+}
+
+// ---------------------------------------------------------------------------
+// Masks tool: the mask list is stored as indexed keys in the "Masking" group:
+//   Mask<i>...            per mask layer (1-based)
+//   Mask<i>Comp<j>...     per component
+//   Mask<i>Comp<j>Stroke<k>  per brush stroke, as a double list:
+//                         size, feather, flow, erase, x0, y0, x1, y1, ...
+// Lists are discovered by probing for the "Enabled" / "Type" / "Stroke" key
+// of the next index, like the Spot removal and Lab regions tools do.
+
+Glib::ustring maskKey(size_t maskIdx, const char* suffix)
+{
+    return Glib::ustring::compose("Mask%1%2", maskIdx + 1, suffix);
+}
+
+Glib::ustring maskCompKey(size_t maskIdx, size_t compIdx, const char* suffix)
+{
+    return Glib::ustring::compose("Mask%1Comp%2%3", maskIdx + 1, compIdx + 1, suffix);
+}
+
+// the curves of a mask layer with their key suffixes (same names as in [Luminance Curve])
+template<typename Layer>
+std::array<std::pair<const char*, decltype(&std::declval<Layer&>().lcurve)>, 9> maskCurves(Layer& m)
+{
+    return {{
+        {"LCurve", &m.lcurve}, {"aCurve", &m.acurve}, {"bCurve", &m.bcurve},
+        {"ccCurve", &m.cccurve}, {"chCurve", &m.chcurve}, {"lhCurve", &m.lhcurve},
+        {"hhCurve", &m.hhcurve}, {"LcCurve", &m.lccurve}, {"ClCurve", &m.clcurve}
+    }};
+}
+
+void saveMaskingParams(Glib::KeyFile& keyFile, const rtengine::procparams::MaskingParams& masking, const ParamsEdited* pedited)
+{
+    using namespace rtengine::procparams;
+    const Glib::ustring group = "Masking";
+
+    saveToKeyfile(!pedited || pedited->masking.enabled, group, "Enabled", masking.enabled, keyFile);
+    saveToKeyfile(!pedited || pedited->masking.showMask, group, "ShowMask", masking.showMask, keyFile);
+    saveToKeyfile(!pedited || pedited->masking.showMask, group, "ShowComponent", masking.showComponent, keyFile);
+
+    if (pedited && !pedited->masking.masks) {
+        return;
+    }
+
+    for (size_t i = 0; i < masking.masks.size(); ++i) {
+        const MaskLayer& m = masking.masks[i];
+        ::putToKeyfile(group, maskKey(i, "Enabled"), m.enabled, keyFile);
+        ::putToKeyfile(group, maskKey(i, "Name"), Glib::ustring(m.name), keyFile);
+        ::putToKeyfile(group, maskKey(i, "Invert"), m.invert, keyFile);
+        ::putToKeyfile(group, maskKey(i, "Expand"), m.expand, keyFile);
+        ::putToKeyfile(group, maskKey(i, "Smooth"), m.smooth, keyFile);
+        ::putToKeyfile(group, maskKey(i, "Feather"), m.feather, keyFile);
+        ::putToKeyfile(group, maskKey(i, "Amount"), m.amount, keyFile);
+        ::putToKeyfile(group, maskKey(i, "Exposure"), m.exposure, keyFile);
+        ::putToKeyfile(group, maskKey(i, "Contrast"), m.contrast, keyFile);
+        ::putToKeyfile(group, maskKey(i, "Highlights"), m.highlights, keyFile);
+        ::putToKeyfile(group, maskKey(i, "Midtones"), m.midtones, keyFile);
+        ::putToKeyfile(group, maskKey(i, "Shadows"), m.shadows, keyFile);
+        ::putToKeyfile(group, maskKey(i, "Whites"), m.whites, keyFile);
+        ::putToKeyfile(group, maskKey(i, "Blacks"), m.blacks, keyFile);
+        ::putToKeyfile(group, maskKey(i, "Temperature"), m.temperature, keyFile);
+        ::putToKeyfile(group, maskKey(i, "Tint"), m.tint, keyFile);
+        ::putToKeyfile(group, maskKey(i, "Hue"), m.hue, keyFile);
+        ::putToKeyfile(group, maskKey(i, "Saturation"), m.saturation, keyFile);
+        ::putToKeyfile(group, maskKey(i, "Clarity"), m.clarity, keyFile);
+
+        // curves: only when not linear (absent key = linear)
+        for (const auto& mc : maskCurves(m)) {
+            if (!mc.second->empty() && (*mc.second)[0] != 0.0) {
+                ::putToKeyfile(group, maskKey(i, mc.first), *mc.second, keyFile);
+            }
+        }
+
+        for (size_t j = 0; j < m.components.size(); ++j) {
+            const MaskComponent& c = m.components[j];
+            ::putToKeyfile(group, maskCompKey(i, j, "Type"), rtengine::toUnderlying(c.type), keyFile);
+            ::putToKeyfile(group, maskCompKey(i, j, "Op"), rtengine::toUnderlying(c.op), keyFile);
+            ::putToKeyfile(group, maskCompKey(i, j, "Enabled"), c.enabled, keyFile);
+            ::putToKeyfile(group, maskCompKey(i, j, "Invert"), c.invert, keyFile);
+            keyFile.set_double_list(group, maskCompKey(i, j, "Geometry"),
+                                    std::vector<double> {c.x0, c.y0, c.x1, c.y1, c.centerX, c.centerY, c.radiusX, c.radiusY, c.angle, c.feather});
+            keyFile.set_double_list(group, maskCompKey(i, j, "Color"),
+                                    std::vector<double> {c.sampleL, c.sampleA, c.sampleB, c.tolerance, c.smoothness});
+            keyFile.set_double_list(group, maskCompKey(i, j, "Luminance"),
+                                    std::vector<double> {c.lumLow, c.lumHigh, c.lumFeatherLow, c.lumFeatherHigh});
+            ::putToKeyfile(group, maskCompKey(i, j, "AIProvider"), Glib::ustring(c.aiProvider), keyFile);
+            ::putToKeyfile(group, maskCompKey(i, j, "AIPrompt"), Glib::ustring(c.aiPrompt), keyFile);
+            keyFile.set_double_list(group, maskCompKey(i, j, "AIHint"),
+                                    std::vector<double> {c.aiHintX, c.aiHintY, c.aiThreshold});
+            ::putToKeyfile(group, maskCompKey(i, j, "AIRefine"), c.aiRefineEdges, keyFile);
+            ::putToKeyfile(group, maskCompKey(i, j, "CornerRadius"), c.cornerRadius, keyFile);
+            ::putToKeyfile(group, maskCompKey(i, j, "EvenOdd"), c.evenOdd, keyFile);
+            ::putToKeyfile(group, maskCompKey(i, j, "Contiguous"), c.contiguous, keyFile);
+
+            if (c.type == MaskComponentType::QUICK_SELECT) {
+                ::putToKeyfile(group, maskCompKey(i, j, "EdgeSensitivity"), c.edgeSensitivity, keyFile);
+            }
+
+            if (!c.points.empty()) {
+                keyFile.set_double_list(group, maskCompKey(i, j, "Points"), c.points);
+            }
+
+            if (!c.seeds.empty()) {
+                keyFile.set_double_list(group, maskCompKey(i, j, "Seeds"), c.seeds);
+            }
+
+            for (size_t k = 0; k < c.strokes.size(); ++k) {
+                const MaskBrushStroke& st = c.strokes[k];
+                std::vector<double> entry;
+                entry.reserve(4 + st.points.size());
+                entry.push_back(st.size);
+                entry.push_back(st.feather);
+                entry.push_back(st.flow);
+                entry.push_back(st.erase ? 1.0 : 0.0);
+                entry.insert(entry.end(), st.points.begin(), st.points.end());
+                keyFile.set_double_list(group, maskCompKey(i, j, Glib::ustring::compose("Stroke%1", k + 1).c_str()), entry);
+            }
+        }
+    }
+}
+
+void loadMaskingParams(const Glib::KeyFile& keyFile, rtengine::procparams::MaskingParams& masking, ParamsEdited* pedited)
+{
+    using namespace rtengine::procparams;
+    const Glib::ustring group = "Masking";
+
+    if (!keyFile.has_group(group)) {
+        return;
+    }
+
+    ::assignFromKeyfile(keyFile, group, "Enabled", masking.enabled, pedited->masking.enabled);
+    ::assignFromKeyfile(keyFile, group, "ShowMask", masking.showMask, pedited->masking.showMask);
+    ::assignFromKeyfile(keyFile, group, "ShowComponent", masking.showComponent, pedited->masking.showMask);
+
+    std::vector<MaskLayer> masks;
+
+    for (size_t i = 0; keyFile.has_key(group, maskKey(i, "Enabled")); ++i) {
+        MaskLayer m;
+        bool dummy = false;
+        Glib::ustring name;
+        ::assignFromKeyfile(keyFile, group, maskKey(i, "Enabled"), m.enabled, dummy);
+
+        if (::assignFromKeyfile(keyFile, group, maskKey(i, "Name"), name, dummy)) {
+            m.name = name;
+        }
+
+        ::assignFromKeyfile(keyFile, group, maskKey(i, "Invert"), m.invert, dummy);
+        ::assignFromKeyfile(keyFile, group, maskKey(i, "Expand"), m.expand, dummy);
+        ::assignFromKeyfile(keyFile, group, maskKey(i, "Smooth"), m.smooth, dummy);
+        ::assignFromKeyfile(keyFile, group, maskKey(i, "Feather"), m.feather, dummy);
+        ::assignFromKeyfile(keyFile, group, maskKey(i, "Amount"), m.amount, dummy);
+        ::assignFromKeyfile(keyFile, group, maskKey(i, "Exposure"), m.exposure, dummy);
+        ::assignFromKeyfile(keyFile, group, maskKey(i, "Contrast"), m.contrast, dummy);
+        ::assignFromKeyfile(keyFile, group, maskKey(i, "Highlights"), m.highlights, dummy);
+        ::assignFromKeyfile(keyFile, group, maskKey(i, "Midtones"), m.midtones, dummy);
+        ::assignFromKeyfile(keyFile, group, maskKey(i, "Shadows"), m.shadows, dummy);
+        ::assignFromKeyfile(keyFile, group, maskKey(i, "Whites"), m.whites, dummy);
+        ::assignFromKeyfile(keyFile, group, maskKey(i, "Blacks"), m.blacks, dummy);
+        ::assignFromKeyfile(keyFile, group, maskKey(i, "Temperature"), m.temperature, dummy);
+        ::assignFromKeyfile(keyFile, group, maskKey(i, "Tint"), m.tint, dummy);
+        ::assignFromKeyfile(keyFile, group, maskKey(i, "Hue"), m.hue, dummy);
+        ::assignFromKeyfile(keyFile, group, maskKey(i, "Saturation"), m.saturation, dummy);
+        ::assignFromKeyfile(keyFile, group, maskKey(i, "Clarity"), m.clarity, dummy);
+
+        for (const auto& mc : maskCurves(m)) {
+            // sanitized like the L*a*b* Adjustments curves
+            ::assignFromKeyfile(keyFile, group, maskKey(i, mc.first), *mc.second, dummy);
+        }
+
+        for (size_t j = 0; keyFile.has_key(group, maskCompKey(i, j, "Type")); ++j) {
+            int type = 0;
+            int op = 0;
+            ::assignFromKeyfile(keyFile, group, maskCompKey(i, j, "Type"), type, dummy);
+            ::assignFromKeyfile(keyFile, group, maskCompKey(i, j, "Op"), op, dummy);
+
+            MaskComponent c(static_cast<MaskComponentType>(rtengine::LIM(type, 0, rtengine::toUnderlying(MASK_COMPONENT_TYPE_LAST))));
+            c.op = static_cast<MaskBooleanOp>(rtengine::LIM(op, 0, rtengine::toUnderlying(MaskBooleanOp::INTERSECT)));
+            ::assignFromKeyfile(keyFile, group, maskCompKey(i, j, "Enabled"), c.enabled, dummy);
+            ::assignFromKeyfile(keyFile, group, maskCompKey(i, j, "Invert"), c.invert, dummy);
+
+            if (keyFile.has_key(group, maskCompKey(i, j, "Geometry"))) {
+                const std::vector<double> g = keyFile.get_double_list(group, maskCompKey(i, j, "Geometry"));
+
+                if (g.size() >= 10) {
+                    c.x0 = g[0];
+                    c.y0 = g[1];
+                    c.x1 = g[2];
+                    c.y1 = g[3];
+                    c.centerX = g[4];
+                    c.centerY = g[5];
+                    c.radiusX = g[6];
+                    c.radiusY = g[7];
+                    c.angle = g[8];
+                    c.feather = g[9];
+                }
+            }
+
+            if (keyFile.has_key(group, maskCompKey(i, j, "Color"))) {
+                const std::vector<double> v = keyFile.get_double_list(group, maskCompKey(i, j, "Color"));
+
+                if (v.size() >= 5) {
+                    c.sampleL = v[0];
+                    c.sampleA = v[1];
+                    c.sampleB = v[2];
+                    c.tolerance = v[3];
+                    c.smoothness = v[4];
+                }
+            }
+
+            if (keyFile.has_key(group, maskCompKey(i, j, "Luminance"))) {
+                const std::vector<double> v = keyFile.get_double_list(group, maskCompKey(i, j, "Luminance"));
+
+                if (v.size() >= 4) {
+                    c.lumLow = v[0];
+                    c.lumHigh = v[1];
+                    c.lumFeatherLow = v[2];
+                    c.lumFeatherHigh = v[3];
+                }
+            }
+
+            Glib::ustring provider;
+
+            if (::assignFromKeyfile(keyFile, group, maskCompKey(i, j, "AIProvider"), provider, dummy)) {
+                c.aiProvider = provider;
+            }
+
+            Glib::ustring prompt;
+
+            if (::assignFromKeyfile(keyFile, group, maskCompKey(i, j, "AIPrompt"), prompt, dummy)) {
+                c.aiPrompt = prompt;
+            }
+
+            if (keyFile.has_key(group, maskCompKey(i, j, "AIHint"))) {
+                const std::vector<double> v = keyFile.get_double_list(group, maskCompKey(i, j, "AIHint"));
+
+                if (v.size() >= 3) {
+                    c.aiHintX = v[0];
+                    c.aiHintY = v[1];
+                    c.aiThreshold = v[2];
+                }
+            }
+
+            ::assignFromKeyfile(keyFile, group, maskCompKey(i, j, "AIRefine"), c.aiRefineEdges, dummy);
+            ::assignFromKeyfile(keyFile, group, maskCompKey(i, j, "CornerRadius"), c.cornerRadius, dummy);
+            ::assignFromKeyfile(keyFile, group, maskCompKey(i, j, "EvenOdd"), c.evenOdd, dummy);
+            ::assignFromKeyfile(keyFile, group, maskCompKey(i, j, "Contiguous"), c.contiguous, dummy);
+            ::assignFromKeyfile(keyFile, group, maskCompKey(i, j, "EdgeSensitivity"), c.edgeSensitivity, dummy);
+
+            if (keyFile.has_key(group, maskCompKey(i, j, "Points"))) {
+                c.points = keyFile.get_double_list(group, maskCompKey(i, j, "Points"));
+
+                if (c.points.size() % 2) {
+                    c.points.pop_back();
+                }
+            }
+
+            if (keyFile.has_key(group, maskCompKey(i, j, "Seeds"))) {
+                c.seeds = keyFile.get_double_list(group, maskCompKey(i, j, "Seeds"));
+                c.seeds.resize(c.seeds.size() - c.seeds.size() % 5);
+            }
+
+            for (size_t k = 0; ; ++k) {
+                const Glib::ustring key = maskCompKey(i, j, Glib::ustring::compose("Stroke%1", k + 1).c_str());
+
+                if (!keyFile.has_key(group, key)) {
+                    break;
+                }
+
+                const std::vector<double> v = keyFile.get_double_list(group, key);
+
+                if (v.size() < 6) {
+                    continue;
+                }
+
+                MaskBrushStroke st;
+                st.size = v[0];
+                st.feather = v[1];
+                st.flow = v[2];
+                st.erase = v[3] > 0.5;
+                st.points.assign(v.begin() + 4, v.end());
+
+                if (st.points.size() % 2) {
+                    st.points.pop_back();
+                }
+
+                c.strokes.push_back(std::move(st));
+            }
+
+            m.components.push_back(std::move(c));
+        }
+
+        masks.push_back(std::move(m));
+    }
+
+    // The presence of the group defines the whole list, even when it is empty.
+    masking.masks = std::move(masks);
+    pedited->masking.masks = true;
 }
 
 namespace ProfileKeys {
@@ -202,7 +502,7 @@ void loadFramingParams(
     const Glib::ustring group{TOOL_NAME};
     if (!keyFile.has_group(group)) return;
 
-    assignFromKeyfile(keyFile, group, TOOL_ENABLED, params.enabled, edited.enabled);
+    ::assignFromKeyfile(keyFile, group, TOOL_ENABLED, params.enabled, edited.enabled);
 
     using FramingMethod = FramingParams::FramingMethod;
     const std::map<std::string, FramingMethod> framingMethodMapping = {
@@ -210,18 +510,18 @@ void loadFramingParams(
         {FRAMING_METHOD_BBOX, FramingMethod::BBOX},
         {FRAMING_METHOD_FIXED_SIZE, FramingMethod::FIXED_SIZE}
     };
-    assignFromKeyfile(keyFile, group, FRAMING_METHOD, framingMethodMapping, params.framingMethod, edited.framingMethod);
-    assignFromKeyfile(keyFile, group, ASPECT_RATIO, params.aspectRatio, edited.aspectRatio);
+    ::assignFromKeyfile(keyFile, group, FRAMING_METHOD, framingMethodMapping, params.framingMethod, edited.framingMethod);
+    ::assignFromKeyfile(keyFile, group, ASPECT_RATIO, params.aspectRatio, edited.aspectRatio);
     using Orientation = FramingParams::Orientation;
     const std::map<std::string, Orientation> orientationMapping = {
         {ORIENT_AS_IMAGE, Orientation::AS_IMAGE},
         {ORIENT_LANDSCAPE, Orientation::LANDSCAPE},
         {ORIENT_PORTRAIT, Orientation::PORTRAIT},
     };
-    assignFromKeyfile(keyFile, group, ORIENTATION, orientationMapping, params.orientation, edited.orientation);
-    assignFromKeyfile(keyFile, group, FRAMED_WIDTH, params.framedWidth, edited.framedWidth);
-    assignFromKeyfile(keyFile, group, FRAMED_HEIGHT, params.framedHeight, edited.framedHeight);
-    assignFromKeyfile(keyFile, group, ALLOW_UPSCALING, params.allowUpscaling, edited.allowUpscaling);
+    ::assignFromKeyfile(keyFile, group, ORIENTATION, orientationMapping, params.orientation, edited.orientation);
+    ::assignFromKeyfile(keyFile, group, FRAMED_WIDTH, params.framedWidth, edited.framedWidth);
+    ::assignFromKeyfile(keyFile, group, FRAMED_HEIGHT, params.framedHeight, edited.framedHeight);
+    ::assignFromKeyfile(keyFile, group, ALLOW_UPSCALING, params.allowUpscaling, edited.allowUpscaling);
 
     using BorderSizing = FramingParams::BorderSizing;
     const std::map<std::string, BorderSizing> borderSizingMapping = {
@@ -229,7 +529,7 @@ void loadFramingParams(
         {BORDER_SIZING_UNIFORM_PERCENTAGE, BorderSizing::UNIFORM_PERCENTAGE},
         {BORDER_SIZING_FIXED_SIZE, BorderSizing::FIXED_SIZE}
     };
-    assignFromKeyfile(keyFile, group, BORDER_SIZING_METHOD, borderSizingMapping, params.borderSizingMethod, edited.borderSizingMethod);
+    ::assignFromKeyfile(keyFile, group, BORDER_SIZING_METHOD, borderSizingMapping, params.borderSizingMethod, edited.borderSizingMethod);
     using Basis = FramingParams::Basis;
     const std::map<std::string, Basis> basisMapping = {
         {BASIS_AUTO, Basis::AUTO},
@@ -238,17 +538,17 @@ void loadFramingParams(
         {BASIS_LONG, Basis::LONG},
         {BASIS_SHORT, Basis::SHORT}
     };
-    assignFromKeyfile(keyFile, group, BASIS, basisMapping, params.basis, edited.basis);
-    assignFromKeyfile(keyFile, group, RELATIVE_BORDER_SIZE, params.relativeBorderSize, edited.relativeBorderSize);
-    assignFromKeyfile(keyFile, group, MIN_SIZE_ENABLED, params.minSizeEnabled, edited.minSizeEnabled);
-    assignFromKeyfile(keyFile, group, MIN_WIDTH, params.minWidth, edited.minWidth);
-    assignFromKeyfile(keyFile, group, MIN_HEIGHT, params.minHeight, edited.minHeight);
-    assignFromKeyfile(keyFile, group, ABS_WIDTH, params.absWidth, edited.absWidth);
-    assignFromKeyfile(keyFile, group, ABS_HEIGHT, params.absHeight, edited.absHeight);
+    ::assignFromKeyfile(keyFile, group, BASIS, basisMapping, params.basis, edited.basis);
+    ::assignFromKeyfile(keyFile, group, RELATIVE_BORDER_SIZE, params.relativeBorderSize, edited.relativeBorderSize);
+    ::assignFromKeyfile(keyFile, group, MIN_SIZE_ENABLED, params.minSizeEnabled, edited.minSizeEnabled);
+    ::assignFromKeyfile(keyFile, group, MIN_WIDTH, params.minWidth, edited.minWidth);
+    ::assignFromKeyfile(keyFile, group, MIN_HEIGHT, params.minHeight, edited.minHeight);
+    ::assignFromKeyfile(keyFile, group, ABS_WIDTH, params.absWidth, edited.absWidth);
+    ::assignFromKeyfile(keyFile, group, ABS_HEIGHT, params.absHeight, edited.absHeight);
 
-    assignFromKeyfile(keyFile, group, BORDER_RED, params.borderRed, edited.borderRed);
-    assignFromKeyfile(keyFile, group, BORDER_GREEN, params.borderGreen, edited.borderGreen);
-    assignFromKeyfile(keyFile, group, BORDER_BLUE, params.borderBlue, edited.borderBlue);
+    ::assignFromKeyfile(keyFile, group, BORDER_RED, params.borderRed, edited.borderRed);
+    ::assignFromKeyfile(keyFile, group, BORDER_GREEN, params.borderGreen, edited.borderGreen);
+    ::assignFromKeyfile(keyFile, group, BORDER_BLUE, params.borderBlue, edited.borderBlue);
 }
 
 void saveFramingParams(
@@ -329,7 +629,7 @@ void loadCropGuideParams(
     const Glib::ustring group{TOOL_NAME};
     if (!keyFile.has_group(group)) return;
 
-    assignFromKeyfile(keyFile, group, TOOL_ENABLED, params.enabled, edited.enabled);
+    ::assignFromKeyfile(keyFile, group, TOOL_ENABLED, params.enabled, edited.enabled);
 
     auto parse_color = [&](const cJSON* obj, const char* key, double& out) {
         const cJSON* entry = cJSON_GetObjectItemCaseSensitive(obj, key);
@@ -376,13 +676,13 @@ void loadCropGuideParams(
     load(PresetIndex::EPASSPORT, EPASSPORT);
     load(PresetIndex::CENTERED_SQUARE, CENTERED_SQUARE);
 
-    assignFromKeyfile(keyFile, group, GOLDEN_TRIANGLE_MIRROR,
+    ::assignFromKeyfile(keyFile, group, GOLDEN_TRIANGLE_MIRROR,
                       params.mirror_golden_triangle, edited.mirror_golden_triangle);
-    assignFromKeyfile(keyFile, group, GOLDEN_RATIO_ROTATE,
+    ::assignFromKeyfile(keyFile, group, GOLDEN_RATIO_ROTATE,
                       params.rotate_golden_ratio, edited.rotate_golden_ratio);
-    assignFromKeyfile(keyFile, group, GOLDEN_RATIO_MIRROR,
+    ::assignFromKeyfile(keyFile, group, GOLDEN_RATIO_MIRROR,
                       params.mirror_golden_ratio, edited.mirror_golden_ratio);
-    assignFromKeyfile(keyFile, group, BLEED, params.bleed, edited.bleed);
+    ::assignFromKeyfile(keyFile, group, BLEED, params.bleed, edited.bleed);
 
     using Basis = CropGuideParams::Basis;
     const std::map<std::string, Basis> basis_mapping = {
@@ -392,7 +692,7 @@ void loadCropGuideParams(
         {BASIS_LONG, Basis::LONG},
         {BASIS_SHORT, Basis::SHORT}
     };
-    assignFromKeyfile(keyFile, group, BASIS, basis_mapping, params.basis, edited.basis);
+    ::assignFromKeyfile(keyFile, group, BASIS, basis_mapping, params.basis, edited.basis);
 
     auto parse_aspect_ratios = [&](const char* data) {
         cJSON* json = cJSON_Parse(data);
@@ -2773,6 +3073,29 @@ bool FilmNegativeParams::operator !=(const FilmNegativeParams& other) const
     return !(*this == other);
 }
 
+MaskingParams::MaskingParams() :
+    enabled(false),
+    masks(),
+    showMask(-1),
+    showComponent(-1),
+    outputFrame(false)
+{
+}
+
+bool MaskingParams::operator ==(const MaskingParams& other) const
+{
+    return
+        enabled == other.enabled
+        && masks == other.masks
+        && showMask == other.showMask
+        && showComponent == other.showComponent;
+}
+
+bool MaskingParams::operator !=(const MaskingParams& other) const
+{
+    return !(*this == other);
+}
+
 
 namespace {
 
@@ -2973,6 +3296,8 @@ void ProcParams::setDefaults()
     raw = {};
 
     metadata = {};
+
+    masking = {};
     //exif.clear();
     //iptc.clear();
 
@@ -3729,6 +4054,9 @@ int ProcParams::save(const Glib::ustring& fname, const Glib::ustring& fname2, bo
         // Also, avoid saving backCompat if the "enabled" key was not saved (most probably the entire key group is excluded).
         saveToKeyfile(filmNegative.backCompat != FilmNegativeParams::BackCompat::CURRENT &&
             (!pedited || pedited->filmNegative.enabled), "Film Negative", "BackCompat", toUnderlying(filmNegative.backCompat), keyFile);
+
+// Masks
+        saveMaskingParams(keyFile, masking, pedited);
 
 // EXIF change list
         if (!pedited || pedited->exif) {
@@ -5218,6 +5546,8 @@ int ProcParams::load(const Glib::ustring& fname, ParamsEdited* pedited)
             }
         }
 
+        loadMaskingParams(keyFile, masking, pedited);
+
         if (keyFile.has_group("MetaData")) {
             int mode = int(MetaDataParams::EDIT);
             assignFromKeyfile(keyFile, "MetaData", "Mode", mode, pedited->metadata.mode);
@@ -5355,7 +5685,8 @@ bool ProcParams::operator ==(const ProcParams& other) const
         && colorToning == other.colorToning
         && metadata == other.metadata
         && dehaze == other.dehaze
-        && filmNegative == other.filmNegative;
+        && filmNegative == other.filmNegative
+        && masking == other.masking;
 }
 
 int ProcParams::write(const Glib::ustring& fname, const Glib::ustring& content) const

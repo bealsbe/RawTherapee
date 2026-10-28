@@ -299,7 +299,7 @@ Image8* ImProcFunctions::lab2rgb(LabImage* lab, int cx, int cy, int cw, int ch, 
 #endif
 
             for (int i = cy; i < condition; i++) {
-                const int ix = i * 3 * cw;
+                const int ix = (i - cy) * 3 * cw;   // row of the cw x ch output image
                 int iy = 0;
                 float* rL = lab->L[i];
                 float* ra = lab->a[i];

@@ -65,6 +65,8 @@ set(RTENGINESOURCEFILES
     imageio.cc
     imagesource.cc
     improccoordinator.cc
+    aisegmentation.cc
+    externalsegmentation.cc
     improcfun.cc
     impulse_denoise.cc
     init.cc
@@ -73,6 +75,7 @@ set(RTENGINESOURCEFILES
     iplab2rgb.cc
     iplocallab.cc
     iplabregions.cc
+    ipmasking.cc
     iplocalcontrast.cc
     ipresize.cc
     ipretinex.cc
@@ -96,6 +99,9 @@ set(RTENGINESOURCEFILES
     pdaflinesfilter.cc
     perspectivecorrection.cc
     PF_correct_RT.cc
+    maskgeometry.cc
+    maskparams.cc
+    masktransform.cc
     pipettebuffer.cc
     pixelshift.cc
     previewimage.cc

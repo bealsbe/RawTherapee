@@ -26,6 +26,8 @@
 #include "curves.h"
 #include "dcp.h"
 #include "dcrop.h"
+#include "lab2rgbcache.h"
+#include "maskcache.h"
 #include "guidedfilter.h"
 #include "image8.h"
 #include "imagefloat.h"
@@ -68,6 +70,8 @@ Crop::Crop(ImProcCoordinator* parent, EditDataProvider *editDataProvider, bool i
       cropAllocated(false),
       cropImageListener(nullptr), parent(parent), isDetailWindow(isDetailWindow)
 {
+    maskCache.reset(new MaskingCache());
+    trueCache.reset(new Lab2RgbCache());
     parent->crops.push_back(this);
 }
 
@@ -827,9 +831,16 @@ void Crop::update(int todo)
     const bool needstransform  = parent->ipf.needsTransform(skips(parent->fw, skip), skips(parent->fh, skip), parent->imgsrc->getRotateDegree(), parent->imgsrc->getMetaData());
     const bool cam02 = params.colorappearance.modelmethod == "02" && params.colorappearance.enabled;
 
+    // The transformed image (baseCrop) is only read by the RGB stages below
+    // (CBDL "before", Local Adjustments, rgbProc): skip the transform when
+    // none of them runs, e.g. for Lab-only or masking-only updates.
+    const bool rgbStagesRun = todo & (M_TRANSFORM | M_RGBCURVE | M_AUTOEXP);
+
     // transform
    // if (needstransform || ((todo & (M_TRANSFORM | M_RGBCURVE)) && params.dirpyrequalizer.cbdlMethod == "bef" && params.dirpyrequalizer.enabled && !params.colorappearance.enabled)) {
-    if (needstransform || ((todo & (M_TRANSFORM | M_RGBCURVE)) && params.dirpyrequalizer.cbdlMethod == "bef" && params.dirpyrequalizer.enabled && !cam02)) {
+    if (needstransform && !rgbStagesRun) {
+        // keep transCrop for the next update that needs it (it is recomputed then)
+    } else if (needstransform || ((todo & (M_TRANSFORM | M_RGBCURVE)) && params.dirpyrequalizer.cbdlMethod == "bef" && params.dirpyrequalizer.enabled && !cam02)) {
         if (!transCrop) {
             transCrop = new Imagefloat(cropw, croph);
         }
@@ -1394,10 +1405,10 @@ void Crop::update(int todo)
     }
 
     // apply luminance operations
-    if (todo & (M_LUMINANCE + M_COLOR)) {
-        //I made a little change here. Rather than have luminanceCurve (and others) use in/out lab images, we can do more if we copy right here.
-        labnCrop->CopyFrom(laboCrop);
+    // Only the masks changed: restart from the input of the Masks stage.
+    const bool maskingOnly = (todo & M_MASKING) && !(todo & (M_LUMINANCE | M_COLOR));
 
+    if ((todo & (M_LUMINANCE + M_COLOR)) || maskingOnly) {
         bool utili = parent->utili;
         bool autili = parent->autili;
         bool butili = parent->butili;
@@ -1406,6 +1417,11 @@ void Crop::update(int todo)
         bool cclutili = parent->cclutili;
 
         LUTu dummy;
+
+        if (!maskingOnly || !maskCache->restoreInput(labnCrop)) {
+        //I made a little change here. Rather than have luminanceCurve (and others) use in/out lab images, we can do more if we copy right here.
+        labnCrop->CopyFrom(laboCrop);
+
         if (params.colorToning.enabled && params.colorToning.method == "LabGrid") {
             parent->ipf.colorToningLabGrid(labnCrop, 0,labnCrop->W , 0, labnCrop->H, false);
         }
@@ -1419,6 +1435,9 @@ void Crop::update(int todo)
         parent->ipf.chromiLuminanceCurve(this, 1, labnCrop, labnCrop, parent->chroma_acurve, parent->chroma_bcurve, parent->satcurve, parent->lhskcurve,  parent->clcurve, parent->lumacurve, utili, autili, butili, ccutili, cclutili, clcutili, dummy, dummy);
         parent->ipf.vibrance(labnCrop, params.vibrance, params.toneCurve.hrenabled, params.icm.workingProfile);
         parent->ipf.labColorCorrectionRegions(labnCrop);
+        }
+
+        parent->ipf.maskedAdjustments(labnCrop, cropx / skip, cropy / skip, skips(parent->fw, skip), skips(parent->fh, skip), ImProcFunctions::MaskingContext::PREVIEW, nullptr, parent->maskSampleBuffer.get(), maskCache.get());
 
        // if ((params.colorappearance.enabled && !params.colorappearance.tonecie) || (!params.colorappearance.enabled)) {
         if ((params.colorappearance.enabled && !params.colorappearance.tonecie) || (!cam02)) {
@@ -1943,7 +1962,7 @@ void Crop::update(int todo)
         // Computing the internal image for analysis, i.e. conversion from lab->Output profile (rtSettings.HistogramWorking disabled) or lab->WCS (rtSettings.HistogramWorking enabled)
 
         // internal image in output color space for analysis
-        Image8 *cropImgtrue = parent->ipf.lab2rgb(labnCrop, 0, 0, cropw, croph, params.icm);
+        Image8 *cropImgtrue = trueCache->convert(parent->ipf, labnCrop, cropw, croph, params.icm);
 
         int finalW = rqcropw;
 
@@ -1976,6 +1995,13 @@ void Crop::update(int todo)
 
 void Crop::freeAll()
 {
+    if (maskCache) {
+        maskCache->clear();
+    }
+
+    if (trueCache) {
+        trueCache->clear();
+    }
 
     if (cropAllocated) {
         if (origCrop) {

@@ -52,6 +52,10 @@ public:
     Glib::ustring   cameraProfilesPath;     ///< The default directory for camera profiles
     Glib::ustring   lensProfilesPath;       ///< The default directory for lens profiles
     bool            enableLibRaw;           ///< Use LibRaw to decode raw images.
+    bool            segmentationEnabled;    ///< Start the external AI segmentation backend (Masks tool)
+    Glib::ustring   segmentationCommand;    ///< Python interpreter used for the segmentation backend
+    Glib::ustring   segmentationScript;     ///< Backend script; empty = the bundled rtdata/segmentation/rt_segment_server.py
+    Glib::ustring   segmentationDevice;     ///< torch device for the backend: "auto", "cuda", "cpu", ...
 
     Glib::ustring   adobe;                  // filename of AdobeRGB1998 profile (default to the bundled one)
     Glib::ustring   prophoto;               // filename of Prophoto     profile (default to the bundled one)

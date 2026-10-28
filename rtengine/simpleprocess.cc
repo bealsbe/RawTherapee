@@ -31,6 +31,7 @@
 #include "imagefloat.h"
 #include "imagesource.h"
 #include "improcfun.h"
+#include "masktransform.h"
 #include "labimage.h"
 #include "metadata.h"
 #include "mytime.h"
@@ -1584,6 +1585,7 @@ private:
 
         ipf.vibrance(labView, params.vibrance, params.toneCurve.hrenabled, params.icm.workingProfile);
         ipf.labColorCorrectionRegions(labView);
+        ipf.maskedAdjustments(labView, 0, 0, fw, fh, ImProcFunctions::MaskingContext::EXPORT);
 
         // for all treatments Defringe, Sharpening, Contrast detail ,Microcontrast they are activated if "CIECAM" function are disabled
 
@@ -2276,6 +2278,16 @@ private:
             }
 
             tmplab = std::move(cropped);
+
+            // The masks are evaluated later on the cropped image: map them
+            // to the (transformed) output frame, then re-express their
+            // normalized coordinates relative to the crop rectangle.
+            if (!params.masking.outputFrame) {
+                MaskTransform(params, fw, fh).masksToOutput(params.masking.masks);
+                params.masking.outputFrame = true;
+            }
+
+            procparams::remapMasksToCrop(params.masking.masks, cx, cy, cw, ch, fw, fh);
         }
 
         assert(params.resize.enabled);

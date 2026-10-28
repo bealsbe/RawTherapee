@@ -32,6 +32,7 @@
 #include "params/threshold.h"
 
 #include "coord.h"
+#include "maskparams.h"
 #include "noncopyable.h"
 
 struct ParamsEdited;
@@ -1406,6 +1407,25 @@ struct FilmNegativeParams {
 };
 
 /**
+  * Parameters of the Masks tool (Lightroom-style localized adjustments).
+  * The mask primitives themselves live in maskparams.h.
+  */
+struct MaskingParams {
+    bool enabled;
+    std::vector<MaskLayer> masks;
+    int showMask;       ///< index of the mask displayed as an overlay, -1 = none
+    int showComponent;  ///< with showMask >= 0: index of the single component to display, -1 = whole mask
+    /// Runtime only (not saved, not compared): the masks were already mapped to
+    /// the output frame (see MaskTransform), e.g. by the fast export pipeline.
+    bool outputFrame;
+
+    MaskingParams();
+
+    bool operator ==(const MaskingParams& other) const;
+    bool operator !=(const MaskingParams& other) const;
+};
+
+/**
   * This class holds all the processing parameters applied on the images
   */
 class ProcParams
@@ -1461,6 +1481,7 @@ public:
     SoftLightParams         softlight;       ///< softlight parameters
     DehazeParams            dehaze;          ///< dehaze parameters
     FilmNegativeParams      filmNegative;    ///< Film negative parameters
+    MaskingParams           masking;         ///< Masks (localized adjustments) parameters
     int                     rank;            ///< Custom image quality ranking
     int                     colorlabel;      ///< Custom color label
     bool                    inTrash;         ///< Marks deleted image

@@ -21,6 +21,7 @@
 #include <glibmm/thread.h>
 
 #include "improccoordinator.h"
+#include "lab2rgbcache.h"
 
 #include "array2D.h"
 #include "cieimage.h"
@@ -304,6 +305,13 @@ void ImProcCoordinator::assign(ImageSource* imgsrc)
 
 void ImProcCoordinator::getParams(procparams::ProcParams* dst, bool tweaked)
 {
+    // process() replaces *params (and paramsBackup) under paramsUpdateMutex
+    // whenever an update starts. Copying without the lock tears the vectors
+    // inside (brush strokes change on every motion event while painting) and
+    // the copy then frees memory it does not own: "double free or corruption"
+    // in CropWindow::pointerMoved, which copies the params on every mouse move.
+    MyMutex::MyLock lock(paramsUpdateMutex);
+
     if (!tweaked && paramsBackup.operator bool()) {
         *dst = *paramsBackup;
     } else {
@@ -1995,7 +2003,11 @@ void ImProcCoordinator::updatePreviewImage(int todo, bool panningRelatedChange)
 
         //scale = 1;
 
-        if ((todo & (M_LUMINANCE + M_COLOR)) || (todo & M_AUTOEXP)) {
+        // Only the masks changed: restart from the input of the Masks stage.
+        const bool maskingOnly = (todo & M_MASKING) && !(todo & (M_LUMINANCE | M_COLOR | M_AUTOEXP));
+
+        if ((todo & (M_LUMINANCE + M_COLOR)) || (todo & M_AUTOEXP) || maskingOnly) {
+            if (!maskingOnly || !maskCache.restoreInput(nprevl)) {
             nprevl->CopyFrom(oprevl);
             histCCurve.clear();
             histLCurve.clear();
@@ -2014,6 +2026,13 @@ void ImProcCoordinator::updatePreviewImage(int todo, bool panningRelatedChange)
             ipf.chromiLuminanceCurve(nullptr, pW, nprevl, nprevl, chroma_acurve, chroma_bcurve, satcurve, lhskcurve, clcurve, lumacurve, utili, autili, butili, ccutili, cclutili, clcutili, histCCurve, histLCurve);
             ipf.vibrance(nprevl, params->vibrance, params->toneCurve.hrenabled, params->icm.workingProfile);
             ipf.labColorCorrectionRegions(nprevl);
+            }
+
+            if (!maskSampleBuffer || maskSampleBuffer->W != pW || maskSampleBuffer->H != pH) {
+                maskSampleBuffer.reset(new LabImage(pW, pH));
+            }
+
+            ipf.maskedAdjustments(nprevl, 0, 0, pW, pH, ImProcFunctions::MaskingContext::PREVIEW, maskSampleBuffer.get(), nullptr, &maskCache);
 
          //   if ((params->colorappearance.enabled && !params->colorappearance.tonecie) || (!params->colorappearance.enabled)) {
             if ((params->colorappearance.enabled && !params->colorappearance.tonecie) || (!cam02)) {
@@ -2748,12 +2767,14 @@ void ImProcCoordinator::updatePreviewImage(int todo, bool panningRelatedChange)
 
 // process crop, if needed
     for (size_t i = 0; i < crops.size(); i++)
-        if (crops[i]->hasListener() && (panningRelatedChange || (highDetailNeeded && prevdemo != PD_Sidecar) || (todo & (M_MONITOR | M_RGBCURVE | M_LUMACURVE)) || crops[i]->get_skip() == 1)) {
+        if (crops[i]->hasListener() && (panningRelatedChange || (highDetailNeeded && prevdemo != PD_Sidecar) || (todo & (M_MONITOR | M_RGBCURVE | M_LUMACURVE | M_MASKING)) || crops[i]->get_skip() == 1)) {
             crops[i]->update(todo);     // may call ourselves
         }
 
-    if (panningRelatedChange || (todo & M_MONITOR)) {
-        if ((todo != CROP && todo != MINUPDATE) || (todo & M_MONITOR)) {
+    // M_MASKING without a parameter change: an asynchronous AI mask arrived and
+    // the image was recomputed from the cached stage input; it must reach the screen.
+    if (panningRelatedChange || (todo & (M_MONITOR | M_MASKING))) {
+        if ((todo != CROP && todo != MINUPDATE) || (todo & (M_MONITOR | M_MASKING))) {
             MyMutex::MyLock prevImgLock(previmg->getMutex());
 
             try {
@@ -2764,7 +2785,11 @@ void ImProcCoordinator::updatePreviewImage(int todo, bool panningRelatedChange)
                 delete workimg;
                 workimg = nullptr;
 
-                workimg = ipf.lab2rgb(nprevl, 0, 0, pW, pH, params->icm);
+                if (!workimgCache) {
+                    workimgCache.reset(new Lab2RgbCache());
+                }
+
+                workimg = workimgCache->convert(ipf, nprevl, pW, pH, params->icm);
             } catch (std::exception&) {
                 return;
             }
@@ -2829,6 +2854,11 @@ void ImProcCoordinator::unsetTweakOperator(TweakOperator *tOperator)
 
 void ImProcCoordinator::freeAll()
 {
+    maskCache.clear();
+
+    if (workimgCache) {
+        workimgCache->clear();
+    }
 
     if (allocated) {
         if (spotprev && spotprev != oprevi) {
@@ -3250,6 +3280,29 @@ void ImProcCoordinator::getCamWB(double& temp, double& green, StandardObserver o
     }
 }
 
+bool ImProcCoordinator::getMaskingLabSample(int x, int y, int size, float& L, float& a, float& b)
+{
+    MyMutex::MyLock lock(mProcessing);
+
+    if (!maskSampleBuffer || scale <= 0) {
+        return false;
+    }
+
+    const int px = x / scale;
+    const int py = y / scale;
+
+    if (px < 0 || py < 0 || px >= maskSampleBuffer->W || py >= maskSampleBuffer->H) {
+        return false;
+    }
+
+    float l, aa, bb;
+    maskSampleBuffer->getPipetteData(l, aa, bb, px, py, std::max(size / scale, 1));
+    L = l / 327.68f;
+    a = aa / 327.68f;
+    b = bb / 327.68f;
+    return true;
+}
+
 void ImProcCoordinator::getSpotWB(int x, int y, int rect, double& temp, double& tgreen)
 {
 
@@ -3530,6 +3583,7 @@ void ImProcCoordinator::process()
             || params->localContrast != nextParams->localContrast
             || params->rgbCurves != nextParams->rgbCurves
             || params->colorToning != nextParams->colorToning
+            || params->masking != nextParams->masking
             || params->vibrance != nextParams->vibrance
             //     || params->wb != nextParams->wb //isPanningRelatedChange(nextParams->wb)
             || params->wb.isPanningRelatedChange(nextParams->wb)
@@ -3589,8 +3643,13 @@ void ImProcCoordinator::process()
         paramsUpdateMutex.lock();
     }
 
-    paramsUpdateMutex.unlock();
+    // Clear the flag while still holding paramsUpdateMutex: an
+    // endUpdateParams() arriving after the loop condition was checked then
+    // sees updaterRunning == false and starts a new thread. Clearing it after
+    // the unlock (as before) could drop that change until the next event
+    // (e.g. the last point of a drag not being rendered).
     updaterRunning = false;
+    paramsUpdateMutex.unlock();
 
     if (plistener) {
         plistener->setProgressState(false);

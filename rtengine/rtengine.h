@@ -799,6 +799,11 @@ public:
     virtual void        getCamWB    (double& temp, double& green, StandardObserver observer) = 0;
     virtual void        getSpotWB  (int x, int y, int rectSize, double& temp, double& green) = 0;
     virtual bool        getFilmNegativeSpot(int x, int y, int spotSize, procparams::FilmNegativeParams::RGB &refInput, procparams::FilmNegativeParams::RGB &refOutput) = 0;
+    /** Samples the L*a*b* color (standard units: L* 0..100, a* and b* about -128..128) at the input of the Masks stage.
+      * @param x, y position in full image coordinates
+      * @param size side of the averaged square, in full image pixels
+      * @return false if no sample is available yet */
+    virtual bool        getMaskingLabSample(int x, int y, int size, float& L, float& a, float& b) = 0;
 
     virtual void        getAutoCrop (double ratio, int &x, int &y, int &w, int &h) = 0;
 

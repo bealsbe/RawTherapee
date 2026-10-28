@@ -55,6 +55,7 @@ class DCPProfileApplyState;
 class FlatCurve;
 class FramesMetaData;
 class LensCorrection;
+class MaskingCache;
 class LocCCmaskCurve;
 class LocLLmaskCurve;
 class LocHHmaskCurve;
@@ -604,6 +605,27 @@ enum class BlurType {
     void toneEqualizer(Imagefloat *rgb, const procparams::ToneEqualizerParams &params, const Glib::ustring &workingProfile, double scale, bool multiThread);
     void softLight(LabImage *lab, const procparams::SoftLightParams &softLightParams);
     void labColorCorrectionRegions(LabImage *lab);
+    /**
+     * Masks tool (Lightroom-style localized adjustments), applied in the Lab stage.
+     * @param lab the Lab buffer to modify
+     * @param cx, cy offset of the buffer inside the whole image, in buffer pixels (detail crops)
+     * @param oW, oH size of the whole image in buffer pixels
+     * @param context which pipeline is calling (see MaskingContext)
+     * @param sampleSnapshot optional buffer (same size as lab) receiving a copy of the
+     *        unmodified input so that the GUI can sample colors at this pipeline stage
+     * @param fullFrameReference optional Lab planes of the whole image at any resolution
+     *        (e.g. the preview's sample snapshot), used by detail crops for the
+     *        connectivity of magic wand selections through the invisible part of the image
+     * @param cache optional state kept between runs of an interactive pipeline (PREVIEW
+     *        context only, one per pipeline): makes repeated runs incremental with
+     *        bit-identical results, see maskcache.h
+     */
+    enum class MaskingContext {
+        PREVIEW,    ///< interactive preview / detail crop: overlay allowed, AI masks computed asynchronously
+        EXPORT,     ///< batch export: no overlay, AI masks computed synchronously
+        THUMBNAIL   ///< thumbnails: no overlay, AI masks only from the cache
+    };
+    void maskedAdjustments(LabImage *lab, int cx, int cy, int oW, int oH, MaskingContext context, LabImage *sampleSnapshot = nullptr, const LabImage *fullFrameReference = nullptr, MaskingCache *cache = nullptr);
 
     Image8*     lab2rgb(LabImage* lab, int cx, int cy, int cw, int ch, const procparams::ColorManagementParams &icm, bool consider_histogram_settings = true);
     void rgb2lab(const Image8 &src, int x, int y, int w, int h, float L[], float a[], float b[], const procparams::ColorManagementParams &icm, bool consider_histogram_settings = true) const;
@@ -620,7 +642,7 @@ enum class BlurType {
     void preserv(LabImage *nprevl, LabImage *provis, int cw, int ch);
 
     bool transCoord(int W, int H, int x, int y, int w, int h, int& xv, int& yv, int& wv, int& hv, double ascaleDef = -1, const LensCorrection *pLCPMap = nullptr) const;
-    bool transCoord(int W, int H, const std::vector<Coord2D> &src, std::vector<Coord2D> &red,  std::vector<Coord2D> &green, std::vector<Coord2D> &blue, double ascaleDef = -1, const LensCorrection *pLCPMap = nullptr) const;
+    bool transCoord(int W, int H, const std::vector<Coord2D> &src, std::vector<Coord2D> &red,  std::vector<Coord2D> &green, std::vector<Coord2D> &blue, double ascaleDef = -1, const LensCorrection *pLCPMap = nullptr, bool clip = true) const;
     static void getAutoExp(const LUTu & histogram, int histcompr, double clip, double& expcomp, int& bright, int& contr, int& black, int& hlcompr, int& hlcomprthresh);
     static double getAutoDistor(const Glib::ustring& fname, int thumb_size);
     double getTransformAutoFill(int oW, int oH, const LensCorrection *pLCPMap = nullptr) const;

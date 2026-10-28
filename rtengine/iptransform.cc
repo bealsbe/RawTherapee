@@ -428,7 +428,7 @@ homogeneous::Matrix<double> perspectiveMatrix(double camera_focal_length, double
 }
 
 bool ImProcFunctions::transCoord (int W, int H, const std::vector<Coord2D> &src, std::vector<Coord2D> &red,  std::vector<Coord2D> &green, std::vector<Coord2D> &blue, double ascaleDef,
-                                  const LensCorrection *pLCPMap) const
+                                  const LensCorrection *pLCPMap, bool clip) const
 {
     enum PerspType { NONE, SIMPLE, CAMERA_BASED };
     const PerspType perspectiveType = needsPerspective() ? (
@@ -562,6 +562,10 @@ bool ImProcFunctions::transCoord (int W, int H, const std::vector<Coord2D> &src,
         red.push_back (Coord2D (Dx * (s + params->cacorrection.red) + w2, Dy * (s + params->cacorrection.red) + h2));
         green.push_back (Coord2D (Dx * s + w2, Dy * s + h2));
         blue.push_back (Coord2D (Dx * (s + params->cacorrection.blue) + w2, Dy * (s + params->cacorrection.blue) + h2));
+    }
+
+    if (!clip) {
+        return false;
     }
 
     // Clip all points and track if they were any corrections

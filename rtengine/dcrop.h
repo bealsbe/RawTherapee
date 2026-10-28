@@ -18,6 +18,8 @@
  */
 #pragma once
 
+#include <memory>
+
 #include "rtengine.h"
 #include "pipettebuffer.h"
 #include "rtgui/threadutils.h"
@@ -31,6 +33,8 @@ class CieImage;
 using namespace procparams;
 
 class ImProcCoordinator;
+class MaskingCache;
+class Lab2RgbCache;
 
 class Crop final : public DetailedCrop, public PipetteBuffer
 {
@@ -49,6 +53,9 @@ protected:
     CieImage*    cieCrop;      // allocating 6 images, each in "one chunk" allocation
     // -----------------------------------------------------------------
     float**         shbuffer;
+    std::unique_ptr<MaskingCache> maskCache;   ///< state of the Masks stage between updates of this crop
+
+    std::unique_ptr<Lab2RgbCache> trueCache;   ///< incremental conversion of the "true" (output profile) image
 
     bool updating;         /// Flag telling if an updater thread is currently processing
     bool newUpdatePending; /// Flag telling the updater thread that a new update is pending

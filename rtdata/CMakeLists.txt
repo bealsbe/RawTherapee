@@ -34,6 +34,7 @@ if(UNIX)
 endif()
 
 install(FILES ${LANGUAGEFILES} DESTINATION "${DATADIR}/languages")
+install(DIRECTORY "segmentation" DESTINATION "${DATADIR}" PATTERN "__pycache__" EXCLUDE)
 install(FILES ${SOUNDFILES} DESTINATION "${DATADIR}/sounds")
 install(FILES ${INPUTICCFILES} DESTINATION "${DATADIR}/iccprofiles/input")
 install(FILES ${OUTPUTICCFILES} DESTINATION "${DATADIR}/iccprofiles/output")

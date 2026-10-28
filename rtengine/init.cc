@@ -28,6 +28,7 @@
 #include "rawimagesource.h"
 #include "improcfun.h"
 #include "improccoordinator.h"
+#include "externalsegmentation.h"
 #include "dfmanager.h"
 #include "ffmanager.h"
 #include "rtthumbnail.h"
@@ -100,6 +101,18 @@ int init (const Settings* s, const Glib::ustring& baseDir, const Glib::ustring& 
 #endif
 {
     CameraConstantsStore::getInstance()->init(baseDir, userSettingsDir);
+
+    // AI segmentation backend for the Masks tool (external Python process)
+    {
+        const std::string script = s->segmentationScript.empty()
+                                   ? std::string(Glib::build_filename(baseDir, "segmentation", "rt_segment_server.py"))
+                                   : std::string(s->segmentationScript);
+        ExternalSegmentationBackend::getInstance().configure(s->segmentationCommand, script, s->segmentationDevice);
+
+        if (s->segmentationEnabled) {
+            registerExternalSegmentationProviders();
+        }
+    }
 }
 #ifdef _OPENMP
 #pragma omp section
@@ -128,6 +141,7 @@ int init (const Settings* s, const Glib::ustring& baseDir, const Glib::ustring& 
 
 void cleanup ()
 {
+    ExternalSegmentationBackend::getInstance().shutdown();
     Exiv2Metadata::cleanup();
     ProcParams::cleanup ();
     Color::cleanup ();

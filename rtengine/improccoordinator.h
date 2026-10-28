@@ -27,6 +27,12 @@
 #include "imagesource.h"
 #include "improcfun.h"
 #include "LUT.h"
+#include "maskcache.h"
+
+namespace rtengine
+{
+class Lab2RgbCache;
+}
 #include "rtengine.h"
 
 #include "rtgui/threadutils.h"
@@ -66,6 +72,9 @@ protected:
     Imagefloat *spotprev;
     LabImage *oprevl;
     LabImage *nprevl;
+    std::unique_ptr<LabImage> maskSampleBuffer; ///< input of the Masks stage, for GUI color sampling
+    MaskingCache maskCache;                     ///< state of the Masks stage between preview updates
+    std::unique_ptr<Lab2RgbCache> workimgCache; ///< incremental conversion of workimg
     Imagefloat *fattal_11_dcrop_cache; // global cache for ToneMapFattal02 used in 1:1 detail windows (except when denoise is active)
     Image8 *previmg;  // displayed image in monitor color space, showing the output profile as well (soft-proofing enabled, which then correspond to workimg) or not
     Image8 *workimg;  // internal image in output color space for analysis
@@ -454,6 +463,7 @@ public:
     void getCamWB    (double& temp, double& green, StandardObserver observer) override;
     void getSpotWB   (int x, int y, int rectSize, double& temp, double& green) override;
     bool getFilmNegativeSpot(int x, int y, int spotSize, FilmNegativeParams::RGB &refInput, FilmNegativeParams::RGB &refOutput) override;
+    bool getMaskingLabSample(int x, int y, int size, float& L, float& a, float& b) override;
     void getAutoCrop (double ratio, int &x, int &y, int &w, int &h) override;
     bool getHighQualComputed() override;
     void setHighQualComputed() override;

@@ -24,6 +24,11 @@
 
 // clang-format off
 
+// Only the Masks tool changed: the Lab stages before it are not re-run, the
+// pipelines restart from the input of the Masks stage kept by their MaskingCache
+// (falls back to M_LUMINANCE|M_COLOR processing when there is none, or when
+// combined with any other flag).
+constexpr int M_MASKING   = (1<<21);
 // Use M_VOID if you wish to update the proc params without updating the preview at all!
 constexpr int M_VOID      = (1<<20);
 // Use M_MINUPDATE if you wish to update the preview without modifying the image (think about it like a "refreshPreview")
@@ -83,6 +88,7 @@ constexpr int IPTC             =  M_VOID;
 constexpr int MINUPDATE        =  M_MINUPDATE;
 constexpr int RETINEX          = (M_RETINEX|ALLNORAW);
 constexpr int MONITORTRANSFORM =  M_MONITOR;
+constexpr int MASKING          =  M_MASKING;  // Masks tool parameters only (see M_MASKING)
 constexpr int OUTPUTPROFILE    =  M_MONITOR;
 
 // clang-format on
