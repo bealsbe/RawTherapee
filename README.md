@@ -10,6 +10,11 @@
 
 This fork adds a **Masks** tool: Lightroom-style local adjustments. It is the first tool in the Selective Editing tab. Everything else is the same as upstream RawTherapee.
 
+<p>
+  <img src="doc/images/masks-subject.jpg" width="69%" alt="Masks panel with a subject mask shown as a red overlay">
+  <img src="doc/images/masks-adjustments.png" width="29%" alt="Per-mask adjustment sliders and curves">
+</p>
+
 - **Masks as layers:** each mask has its own adjustments. You draw on a mask with tools from a palette of icons, and the preview updates live as you draw. Nothing is applied destructively.
 - **Drawing tools:** Brush, Eraser, Rectangle, Lasso, Linear gradient, Radial gradient, Magic wand, Quick select (a brush that grows over similar, connected pixels), Color range and Luminance range.
 - **Subject, Sky, Background and Object masks:** these come from a subject detection model run by an optional local Python helper; see [`rtdata/segmentation/README.md`](rtdata/segmentation/README.md). Without the helper these four tools are greyed out.
