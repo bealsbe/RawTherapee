@@ -1,0 +1,3 @@
+# Build outputs and scratch space of the packaging pipeline
+dist/
+work/
