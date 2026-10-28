@@ -12,9 +12,7 @@ This fork adds a **Masks** tool: Lightroom-style local adjustments. It is the fi
 
 - **Masks as layers:** each mask has its own adjustments. You draw on a mask with tools from a palette of icons, and the preview updates live as you draw. Nothing is applied destructively.
 - **Drawing tools:** Brush, Eraser, Rectangle, Lasso, Linear gradient, Radial gradient, Magic wand, Quick select (a brush that grows over similar, connected pixels), Color range and Luminance range.
-- **AI tools:** Subject, Sky, Background and Object (click on the object you want).
-  - These need an optional local Python helper; see [`rtdata/segmentation/README.md`](rtdata/segmentation/README.md). It uses BiRefNet, SAM 2.1 and EoMT, with a GPU recommended. Edge refinement with ViTMatte is optional.
-  - Without the helper the AI tools are greyed out and everything else works.
+- **Subject, Sky, Background and Object masks:** these come from a subject detection model run by an optional local Python helper; see [`rtdata/segmentation/README.md`](rtdata/segmentation/README.md). Without the helper these four tools are greyed out.
 - **Combining:** each tool adds to, subtracts from or intersects with the mask. Each mask can also be inverted, feathered, expanded or contracted, smoothed, and given an overall opacity. A red overlay shows the mask.
 - **Per-mask adjustments:**
   - Sliders: Exposure, Contrast, Highlights, Midtones, Shadows, Whites, Blacks, Temperature, Tint, Hue, Saturation and Clarity.
