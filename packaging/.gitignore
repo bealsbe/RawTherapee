@@ -1,3 +1,6 @@
 # Build outputs and scratch space of the packaging pipeline
 dist/
 work/
+
+# The root .gitignore ignores build*; keep the build scripts
+!build-*.sh
