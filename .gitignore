@@ -53,3 +53,7 @@ clean
 # Must be last to override all previous settings!
 !external/libraw/
 !external/libraw/**
+
+# Python bytecode
+__pycache__/
+*.pyc

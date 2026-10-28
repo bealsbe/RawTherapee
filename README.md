@@ -6,6 +6,26 @@
 
 ![RawTherapee screenshot](http://rawtherapee.com/images/carousel/100_rt59_provence_local_maskxxx.jpg)
 
+## About this fork: Masks (TL;DR)
+
+This fork adds a **Masks** tool: Lightroom-style local adjustments. It is the first tool in the Selective Editing tab. Everything else is the same as upstream RawTherapee.
+
+- **Masks as layers:** each mask has its own adjustments. You draw on a mask with tools from a palette of icons, and the preview updates live as you draw. Nothing is applied destructively.
+- **Drawing tools:** Brush, Eraser, Rectangle, Lasso, Linear gradient, Radial gradient, Magic wand, Quick select (a brush that grows over similar, connected pixels), Color range and Luminance range.
+- **AI tools:** Subject, Sky, Background and Object (click on the object you want).
+  - These need an optional local Python helper; see [`rtdata/segmentation/README.md`](rtdata/segmentation/README.md). It uses BiRefNet, SAM 2.1 and EoMT, with a GPU recommended. Edge refinement with ViTMatte is optional.
+  - Without the helper the AI tools are greyed out and everything else works.
+- **Combining:** each tool adds to, subtracts from or intersects with the mask. Each mask can also be inverted, feathered, expanded or contracted, smoothed, and given an overall opacity. A red overlay shows the mask.
+- **Per-mask adjustments:**
+  - Sliders: Exposure, Contrast, Highlights, Midtones, Shadows, Whites, Blacks, Temperature, Tint, Hue, Saturation and Clarity.
+  - Curves: the nine L\*a\*b\* curves (L, a, b, CC, CH, LH, HH, LC, CL).
+- **Masks stay attached to the image:** they follow rotation, flips, distortion and perspective correction. They also render the same at any size, in the preview, in exports, in batch processing and on thumbnails.
+- **Saved in the `.pp3`:** masks are stored in the processing profile under a `[Masking]` section. Upstream RawTherapee ignores that section.
+- **Smaller changes:**
+  - Middle-mouse-button panning in the preview.
+  - Thread-safety fixes for the histogram and for reading processing parameters.
+  - Local packaging scripts for an AppImage and a portable Windows build (see [`packaging/README.md`](packaging/README.md)).
+
 RawTherapee is a powerful, cross-platform raw photo processing program, released as [libre software](https://en.wikipedia.org/wiki/Free_software) under the [GNU General Public License Version 3](https://opensource.org/licenses/gpl-3.0.html). It is written mostly in C++ using a [GTK+](https://www.gtk.org) front-end. It uses a patched version of [dcraw](https://www.dechifro.org/dcraw/) for reading raw files, with an in-house solution which adds the highest quality support for certain camera models unsupported by dcraw and enhances the accuracy of certain raw files already supported by dcraw. It is notable for the advanced control it gives the user over the demosaicing and development process.
 
 ## Target Audience
