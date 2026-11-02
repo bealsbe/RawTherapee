@@ -10,18 +10,15 @@ added or swapped without touching C++ code.
 
 | id             | Model                                            | Prompts                                                        | Weights (licence)                                                       |
 |----------------|--------------------------------------------------|----------------------------------------------------------------|-------------------------------------------------------------------------|
-| `birefnet`     | BiRefNet + SAM 2.1 + EoMT (default without SAM 3)| clicked point (Object); ADE20K class name as Concept           | `ZhengPeng7/BiRefNet_dynamic` (GPU) / `ZhengPeng7/BiRefNet_lite` (CPU) (MIT), `facebook/sam2.1-hiera-large` (Apache-2.0), `tue-mps/ade20k_semantic_eomt_large_512` (MIT) |
+| `birefnet`     | BiRefNet + SAM 2.1 + EoMT (default)              | clicked point (Object); ADE20K class name as Concept           | `ZhengPeng7/BiRefNet_dynamic` (GPU) / `ZhengPeng7/BiRefNet_lite` (CPU) (MIT), `facebook/sam2.1-hiera-large` (Apache-2.0), `tue-mps/ade20k_semantic_eomt_large_512` (MIT) |
 | `sam2`         | SAM 2.1 + EoMT (ADE20K) via Transformers         | clicked point (Object); ADE20K class name as Concept           | `facebook/sam2.1-hiera-large` (Apache-2.0), `tue-mps/ade20k_semantic_eomt_large_512` (MIT) |
 | `semantic`     | EoMT (ADE20K) alone                              | ADE20K class name as Concept; Object = class under the click   | `tue-mps/ade20k_semantic_eomt_large_512` (MIT)                          |
-| `sam3`         | SAM 3 via Hugging Face Transformers              | free text concept, box around the clicked point                | `facebook/sam3` (gated, request access; custom SAM licence)             |
-| `sam3-official`| SAM 3 via the `sam3` package                     | same                                                           | `facebook/sam3` (gated)                                                 |
 | `dummy-python` | heuristics, no ML (hidden; tests only)           | none                                                           | none                                                                    |
 
 Edge refinement (any provider, any target): `hustvl/vitmatte-small-composition-1k`
 (ViTMatte, Apache-2.0, 26 M parameters), see below.
 
-How the targets are computed by `birefnet`, the default on machines without
-SAM 3 access:
+How the targets are computed by `birefnet`, the default:
 
 * **Subject**: BiRefNet, a dichotomous ("salient foreground") segmentation
   model: no class knowledge needed, soft edges, works for people, animals,
@@ -79,16 +76,14 @@ default.
 `semantic` is the lightweight option without SAM (one model); its Subject is
 weaker (class probabilities only) and its Sky is not SAM-gated.
 
-The backend's default is SAM 3 when its gated weights are accessible, otherwise
-`birefnet`, otherwise `sam2`, otherwise `semantic`. Each AI component in the
+The backend's default is `birefnet`, otherwise `sam2`, otherwise `semantic`. Each AI component in the
 Masks panel has a *Provider* dropdown to pick a model explicitly; models that
 exist but cannot run (gated weights not granted, package missing) are listed
-greyed out with the reason. The *Concept* text field takes free text with
-SAM 3 and an ADE20K class name (person, animal, car, tree, water, building,
-...; a few synonyms such as "people", "dog", "ocean" are understood) with the
-other providers.
+greyed out with the reason. The *Concept* text field takes an ADE20K class name
+(person, animal, car, tree, water, building, ...; a few synonyms such as
+"people", "dog", "ocean" are understood).
 
-Environment variables: `RT_SAM3_REPO`, `RT_SAM2_REPO` (for example
+Environment variables: `RT_SAM2_REPO` (for example
 `facebook/sam2.1-hiera-small` for a faster, smaller model), `RT_EOMT_REPO`,
 `RT_SEGFORMER_REPO` (for example `nvidia/segformer-b0-finetuned-ade-512-512`,
 4 M parameters, for slow CPUs), `RT_BIREFNET_REPO` (`auto` = dynamic on a GPU,
@@ -101,18 +96,10 @@ the access check for weights that are not cached yet.
 
 * Python 3.10+ with `numpy`, `pillow`, `torch`, `transformers` (5.x, or any
   version that provides `Sam2Model` / `EomtForUniversalSegmentation` /
-  `VitMatteForImageMatting` / `Sam3Model`) and `huggingface_hub`.
+  `VitMatteForImageMatting`) and `huggingface_hub`.
 * For BiRefNet: `einops`, `kornia`, `timm` (`pip install einops kornia timm`).
 * A GPU is strongly recommended (CUDA or ROCm builds of PyTorch both work;
   the device is chosen automatically). CPU works but is slow.
-* For SAM 3: request access at https://huggingface.co/facebook/sam3 and
-  log in once with `hf auth login`. **SAM 3 is currently switched off**: the
-  `sam3` / `sam3-official` entries are listed greyed out with a static reason,
-  are never chosen as default, and the backend makes no request to Hugging
-  Face for `facebook/sam3` at all. The single switch is `SAM3_ENABLED` in
-  `rt_segment_server.py`, set from the environment variable `RT_ENABLE_SAM3=1`;
-  with it on, availability is checked against the gated repo again
-  (`huggingface_hub.auth_check`, short timeout, offline safe).
 * Optional: `scipy` (faster connected components).
 
 Weights are downloaded on first use into the Hugging Face cache. The "info"

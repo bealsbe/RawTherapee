@@ -210,9 +210,8 @@ Where the `options` file lives:
 
 `Script=` may point at a copy of `rt_segment_server.py` elsewhere (useful to
 hack on the backend without rebuilding). Weights are downloaded on first use
-into the Hugging Face cache; SAM 3 needs access to the gated
-`facebook/sam3` repository (`hf auth login`), otherwise SAM 2.1 + SegFormer is
-used, and `segformer` alone is the CPU-friendly choice.
+into the Hugging Face cache; the default is BiRefNet + SAM 2.1 + EoMT, and
+`semantic` (EoMT alone) is the CPU-friendly choice.
 
 ## Reproducing from scratch
 

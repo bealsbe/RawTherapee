@@ -53,13 +53,6 @@ import traceback
 import numpy as np
 from PIL import Image
 
-SAM3_REPO = os.environ.get("RT_SAM3_REPO", "facebook/sam3")
-# SAM 3 switch. While it is off (the default) the sam3 / sam3-official providers are reported
-# unavailable with a static reason, are never the default, and no request of any kind is made to
-# Hugging Face for the gated facebook/sam3 weights (no auth_check, no config download). Set
-# RT_ENABLE_SAM3=1 to turn the SAM 3 code paths back on once access has been granted.
-SAM3_ENABLED = os.environ.get("RT_ENABLE_SAM3", "").strip() == "1"
-SAM3_DISABLED_REASON = "SAM 3 is disabled in this build until access to the gated weights is granted (set RT_ENABLE_SAM3=1 to enable)"
 SAM2_REPO = os.environ.get("RT_SAM2_REPO", "facebook/sam2.1-hiera-large")
 SEGFORMER_REPO = os.environ.get("RT_SEGFORMER_REPO", "nvidia/segformer-b2-finetuned-ade-512-512")
 EOMT_REPO = os.environ.get("RT_EOMT_REPO", "tue-mps/ade20k_semantic_eomt_large_512")
@@ -75,13 +68,6 @@ VITMATTE_REPO = os.environ.get("RT_VITMATTE_REPO", "hustvl/vitmatte-small-compos
 # Width of the trimap's unknown band around the mask edge, as a fraction of the image diagonal.
 MATTING_BAND = float(os.environ.get("RT_MATTING_BAND", "0.02"))
 HF_ACCESS_TIMEOUT = float(os.environ.get("RT_HF_ACCESS_TIMEOUT", "4"))
-
-DEFAULT_PROMPTS = {
-    "subject": "person",
-    "sky": "sky",
-    "background": "person",   # segmented, then inverted
-    "object": "",
-}
 
 # ADE20K classes (as named in the SegFormer configs) used for the class targets.
 SUBJECT_PRIMARY = ["person", "animal"]
@@ -931,7 +917,7 @@ class SemanticTargets:
 
             if not ids:
                 raise ValueError("concept '%s' is not one of the ADE20K classes this model knows (try person, animal, car, "
-                                 "tree, water, building, ...); SAM 3 is needed for free text" % prompt.strip())
+                                 "tree, water, building, ...)" % prompt.strip())
 
             return seg.class_map(probs, ids), "concept"
 
@@ -1303,186 +1289,6 @@ class SemanticOnlyModel(ModelAdapter):
 
 
 # ---------------------------------------------------------------------------
-# SAM 3 through Hugging Face Transformers (Sam3Model / Sam3Processor)
-
-class Sam3TransformersModel(ModelAdapter):
-    id = "sam3"
-    name = "SAM 3 (Meta, Transformers)"
-    description = "Segment Anything 3: concept prompts (free text), boxes around a clicked point."
-    repo = SAM3_REPO
-
-    def __init__(self, device):
-        super().__init__(device)
-        self.model = None
-        self.processor = None
-
-    def available(self):
-        if not SAM3_ENABLED:
-            return False, SAM3_DISABLED_REASON
-
-        ok, reason = check_transformers("SAM 3", "5.0.0")
-        return (ok, reason) if not ok else check_repo_access(self.repo)
-
-    def load(self):
-        if self.model is not None:
-            return
-
-        import torch
-        from transformers import Sam3Model, Sam3Processor
-
-        t0 = time.time()
-        self.device = pick_device(self.device)
-        log("loading %s on %s" % (self.repo, self.device))
-        self.model = Sam3Model.from_pretrained(self.repo)
-        self.model.to(self.device)
-        self.model.eval()
-        self.processor = Sam3Processor.from_pretrained(self.repo)
-        self.torch = torch
-        log("loaded in %.1f s" % (time.time() - t0))
-
-    def segment(self, image, target, prompt, point, threshold):
-        self.load()
-        torch = self.torch
-        w, h = image.size
-        text = prompt.strip() if prompt else ""
-        invert = False
-
-        if target == "background":
-            invert = True
-
-        if not text:
-            text = DEFAULT_PROMPTS.get(target, "")
-
-        kwargs = {}
-        box = None
-
-        if target == "object" and point is not None:
-            # A positive box around the clicked point; the text (if any) narrows the concept.
-            bw = max(0.06 * min(w, h), 8.0)
-            cx, cy = point[0] * w, point[1] * h
-            box = [max(cx - bw, 0.0), max(cy - bw, 0.0), min(cx + bw, w - 1.0), min(cy + bw, h - 1.0)]
-            kwargs["input_boxes"] = [[box]]
-            kwargs["input_boxes_labels"] = [[1]]
-
-        if text:
-            kwargs["text"] = text
-        elif box is None:
-            return np.zeros((h, w), np.float32), 0
-
-        inputs = self.processor(images=image, return_tensors="pt", **kwargs).to(self.device)
-
-        with torch.no_grad():
-            outputs = self.model(**inputs)
-
-        results = self.processor.post_process_instance_segmentation(
-            outputs,
-            threshold=float(threshold),
-            mask_threshold=0.5,
-            target_sizes=inputs.get("original_sizes").tolist(),
-        )[0]
-
-        masks = results.get("masks")
-        scores = results.get("scores")
-        n = 0 if masks is None else len(masks)
-
-        if n == 0:
-            out = np.zeros((h, w), np.float32)
-        else:
-            m = masks.detach().cpu().numpy().astype(np.float32)
-            m = m.reshape(n, m.shape[-2], m.shape[-1])
-
-            if target == "object" and point is not None:
-                # Prefer the instance that contains the clicked point.
-                px = min(max(int(point[0] * w), 0), w - 1)
-                py = min(max(int(point[1] * h), 0), h - 1)
-                hits = [i for i in range(n) if m[i, py, px] > 0.5]
-
-                if hits:
-                    best = max(hits, key=lambda i: float(scores[i]) if scores is not None else 0.0)
-                    out = m[best]
-                else:
-                    out = m.max(axis=0)
-            else:
-                out = m.max(axis=0)
-
-        if invert:
-            out = 1.0 - out
-
-        return out, n
-
-
-# ---------------------------------------------------------------------------
-# SAM 3 through Meta's official package (pip install -e . from facebookresearch/sam3)
-
-class Sam3OfficialModel(ModelAdapter):
-    id = "sam3-official"
-    name = "SAM 3 (Meta, official package)"
-    description = "Same model through the facebookresearch/sam3 package."
-
-    def __init__(self, device):
-        super().__init__(device)
-        self.processor = None
-
-    def available(self):
-        import importlib.util
-
-        if not SAM3_ENABLED:
-            return False, SAM3_DISABLED_REASON
-
-        if importlib.util.find_spec("sam3") is None:
-            return False, "the sam3 package is not installed (pip install from github.com/facebookresearch/sam3)"
-
-        return check_repo_access(SAM3_REPO)
-
-    def load(self):
-        if self.processor is not None:
-            return
-
-        from sam3.model_builder import build_sam3_image_model
-        from sam3.model.sam3_image_processor import Sam3Processor
-
-        t0 = time.time()
-        self.device = pick_device(self.device)
-        model = build_sam3_image_model(device=self.device)
-        self.processor = Sam3Processor(model, device=self.device)
-        log("sam3 official loaded in %.1f s" % (time.time() - t0))
-
-    def segment(self, image, target, prompt, point, threshold):
-        self.load()
-        w, h = image.size
-        text = prompt.strip() if prompt else ""
-        invert = target == "background"
-
-        if not text:
-            text = DEFAULT_PROMPTS.get(target, "")
-
-        state = self.processor.set_image(image)
-        self.processor.set_confidence_threshold(float(threshold), state)
-
-        if target == "object" and point is not None:
-            bw = max(0.06 * min(w, h), 8.0)
-            cx, cy = point[0] * w, point[1] * h
-            self.processor.add_geometric_prompt([cx / w, cy / h, 2 * bw / w, 2 * bw / h], True, state)
-
-        if text:
-            state = self.processor.set_text_prompt(text, state)
-
-        logits = state.get("masks_logits")
-        n = 0 if logits is None else int(logits.shape[0])
-
-        if n == 0:
-            out = np.zeros((h, w), np.float32)
-        else:
-            m = logits.detach().float().cpu().numpy().reshape(n, h, w)
-            out = m.max(axis=0)
-
-        if invert:
-            out = 1.0 - out
-
-        return out, n
-
-
-# ---------------------------------------------------------------------------
 # Heuristic stand-in, for testing the pipeline without any ML dependency.
 # Hidden: usable when requested by id, never offered in the GUI.
 
@@ -1521,17 +1327,13 @@ class DummyModel(ModelAdapter):
         return np.clip(out, 0, 1).astype(np.float32), 1
 
 
-MODEL_CLASSES = [Sam3TransformersModel, Sam3OfficialModel, BiRefNetProviderModel, Sam2TransformersModel, SemanticOnlyModel, DummyModel]
-PREFERRED_MODELS = ["sam3", "birefnet", "sam2", "semantic"]
-SAM3_MODEL_IDS = ("sam3", "sam3-official")
+MODEL_CLASSES = [BiRefNetProviderModel, Sam2TransformersModel, SemanticOnlyModel, DummyModel]
+PREFERRED_MODELS = ["birefnet", "sam2", "semantic"]
 
 
 def choose_default_model(models):
-    """SAM 3 when its gated weights are accessible, otherwise BiRefNet + SAM 2.1, SAM 2.1 + semantic, semantic only; "" if none works."""
+    """BiRefNet + SAM 2.1, otherwise SAM 2.1 + semantic, otherwise semantic only; "" if none works."""
     for mid in PREFERRED_MODELS:
-        if mid in SAM3_MODEL_IDS and not SAM3_ENABLED:
-            continue
-
         m = models.get(mid)
 
         if m is not None and not m.hidden and m.available()[0]:

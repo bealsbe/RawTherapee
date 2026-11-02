@@ -4203,7 +4203,7 @@ TP_MASKING_AI_ERROR;Segmentation error: %1
 TP_MASKING_AI_HINT;Click on the image to tell the segmentation provider which object to select.
 TP_MASKING_AI_PROMPT;Concept
 TP_MASKING_AI_PROMPT_PLACEHOLDER;e.g. person, animal, car, tree (empty = default for the type)
-TP_MASKING_AI_PROMPT_TOOLTIP;What to select. Free text with SAM 3 (concept prompt); an ADE20K class name such as person, animal, car, tree, water or building with SAM 2.1 + SegFormer. Press Enter to apply.
+TP_MASKING_AI_PROMPT_TOOLTIP;What to select: an ADE20K class name such as person, animal, car, tree, water or building (found by the semantic model and refined by SAM 2.1). Press Enter to apply.
 TP_MASKING_AI_PROVIDER;Provider
 TP_MASKING_AI_PROVIDER_TOOLTIP;Segmentation model used for this component. Greyed entries cannot run on this machine.
 TP_MASKING_AI_PROVIDER_UNAVAILABLE;%1 cannot be used: %2

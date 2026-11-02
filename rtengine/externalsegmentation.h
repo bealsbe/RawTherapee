@@ -19,7 +19,7 @@
 
 /**
  * AI segmentation through an external process (rtdata/segmentation/
- * rt_segment_server.py). The backend runs the actual models (SAM 3 first);
+ * rt_segment_server.py). The backend runs the actual models;
  * this side only converts the image, exchanges files and caches results.
  *
  * One ExternalSegmentationProvider is registered per model the backend
