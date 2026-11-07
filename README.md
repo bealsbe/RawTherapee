@@ -6,6 +6,8 @@
 
 ![RawTherapee screenshot](http://rawtherapee.com/images/carousel/100_rt59_provence_local_maskxxx.jpg)
 
+RawTherapee is a powerful, cross-platform raw photo processing program, released as [libre software](https://en.wikipedia.org/wiki/Free_software) under the [GNU General Public License Version 3](https://opensource.org/licenses/gpl-3.0.html). It is written mostly in C++ using a [GTK+](https://www.gtk.org) front-end. It uses a patched version of [dcraw](https://www.dechifro.org/dcraw/) for reading raw files, with an in-house solution which adds the highest quality support for certain camera models unsupported by dcraw and enhances the accuracy of certain raw files already supported by dcraw. It is notable for the advanced control it gives the user over the demosaicing and development process.
+
 ## About this fork: Masks (TL;DR)
 
 This fork adds a **Masks** tool: Lightroom-style local adjustments. It is the first tool in the Selective Editing tab. Everything else is the same as upstream RawTherapee.
@@ -28,8 +30,6 @@ This fork adds a **Masks** tool: Lightroom-style local adjustments. It is the fi
   - Middle-mouse-button panning in the preview.
   - Thread-safety fixes for the histogram and for reading processing parameters.
   - Packaging scripts for a Linux AppImage and a portable Windows build (see [`packaging/README.md`](packaging/README.md)). Ready-made packages are on the [Releases](https://github.com/bealsbe/RawTherapee/releases) page.
-
-RawTherapee is a powerful, cross-platform raw photo processing program, released as [libre software](https://en.wikipedia.org/wiki/Free_software) under the [GNU General Public License Version 3](https://opensource.org/licenses/gpl-3.0.html). It is written mostly in C++ using a [GTK+](https://www.gtk.org) front-end. It uses a patched version of [dcraw](https://www.dechifro.org/dcraw/) for reading raw files, with an in-house solution which adds the highest quality support for certain camera models unsupported by dcraw and enhances the accuracy of certain raw files already supported by dcraw. It is notable for the advanced control it gives the user over the demosaicing and development process.
 
 ## Target Audience
 
