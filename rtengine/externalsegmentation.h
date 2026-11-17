@@ -33,13 +33,23 @@
  * the cached (or empty) mask is returned at once, the model runs in a
  * worker thread, and the registry's result callback asks the GUI to
  * refresh the preview when the mask is ready.
+ *
+ * That refresh issues the same requests again, so a request must never
+ * start a job every time it is seen, or the preview refreshes for ever:
+ *
+ *  - the cache keeps several images per key. The same key is legitimately
+ *    asked for different images within one refresh: a layer sees the image
+ *    as left by the layers before it, the mask overlay shows the stage
+ *    input, and each editor tab has its own image. With one entry per key
+ *    those requests would evict each other's result in turn.
+ *  - a job that failed is not started again for RETRY_SECONDS.
  */
 
+#include <chrono>
+#include <cstdint>
 #include <cstdio>
-#include <map>
 #include <memory>
 #include <mutex>
-#include <set>
 #include <string>
 #include <thread>
 #include <vector>
@@ -114,13 +124,16 @@ public:
 
 private:
     struct CacheEntry {
+        std::string key;
         std::vector<float> signature;   // SIGNATURE_SIZE x SIGNATURE_SIZE mean L*
         int width = 0;                  // mask size (normalized full-image coordinates)
         int height = 0;
         std::vector<float> mask;        // row major, 0..1
+        uint64_t lastUse = 0;
     };
 
     struct Job {
+        uint64_t id = 0;
         std::string key;
         std::string target;
         std::string prompt;
@@ -135,8 +148,29 @@ private:
         std::vector<float> signature;
     };
 
+    /// A background job: in 'running' until its result (or failure) is recorded, in 'workers' until its thread is joined.
+    struct Running {
+        uint64_t id = 0;
+        std::string key;
+        std::vector<float> signature;
+    };
+
+    struct Worker {
+        uint64_t id = 0;
+        std::thread thread;
+        bool done = false;   ///< the thread no longer needs 'mutex': it can be joined
+    };
+
+    struct Failure {
+        std::string key;
+        std::vector<float> signature;
+        std::chrono::steady_clock::time_point when;
+    };
+
     static constexpr int SIGNATURE_SIZE = 24;
     static constexpr int MAX_SIDE = 1024;
+    static constexpr size_t MAX_CACHE_ENTRIES = 16;   ///< masks kept, least recently used dropped first (up to 4 MB each)
+    static constexpr int RETRY_SECONDS = 10;          ///< a failed job is not started again before that
 
     std::string makeKey(const SegmentationRequest& req) const;
     static std::vector<float> computeSignature(const SegmentationRequest& req);
@@ -144,14 +178,23 @@ private:
     static void prepareImage(const SegmentationRequest& req, Job& job);
     bool runJob(const Job& job, std::string& error);
     void sampleCached(const CacheEntry& entry, const SegmentationRequest& req, array2D<float>& out) const;
-    void joinFinishedThreads();
+
+    // callers hold mutex
+    CacheEntry* findEntry(const std::string& key, const std::vector<float>& signature);
+    CacheEntry* findLatestEntry(const std::string& key);
+    bool isRunning(const std::string& key, const std::vector<float>& signature) const;
+    bool failedRecently(const std::string& key, const std::vector<float>& signature);
+    void takeFinishedThreads(std::vector<std::thread>& finished);
 
     ExternalSegmentationBackend::ModelInfo info_;
 
     std::mutex mutex;
-    std::map<std::string, CacheEntry> cache;
-    std::set<std::string> pending;
-    std::vector<std::thread> threads;
+    std::vector<CacheEntry> cache;
+    std::vector<Running> running;
+    std::vector<Worker> workers;
+    std::vector<Failure> failures;
+    uint64_t useClock = 0;
+    uint64_t nextJobId = 1;
 };
 
 /**

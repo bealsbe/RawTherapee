@@ -412,15 +412,15 @@ ExternalSegmentationProvider::~ExternalSegmentationProvider()
     // Make pending jobs fail quickly, then wait for their threads.
     ExternalSegmentationBackend::getInstance().shutdown();
 
-    std::vector<std::thread> running;
+    std::vector<Worker> all;
     {
         std::lock_guard<std::mutex> lock(mutex);
-        running.swap(threads);
+        all.swap(workers);
     }
 
-    for (auto& t : running) {
-        if (t.joinable()) {
-            t.join();
+    for (auto& w : all) {
+        if (w.thread.joinable()) {
+            w.thread.join();
         }
     }
 }
@@ -580,10 +580,87 @@ bool ExternalSegmentationProvider::runJob(const Job& job, std::string& error)
         return false;
     }
 
+    entry.key = job.key;
     entry.signature = job.signature;
     std::lock_guard<std::mutex> lock(mutex);
-    cache[job.key] = std::move(entry);
+    entry.lastUse = ++useClock;
+
+    if (CacheEntry* same = findEntry(job.key, job.signature)) {
+        *same = std::move(entry);
+        return true;
+    }
+
+    if (cache.size() >= MAX_CACHE_ENTRIES) {
+        cache.erase(std::min_element(cache.begin(), cache.end(), [](const CacheEntry& a, const CacheEntry& b) {
+            return a.lastUse < b.lastUse;
+        }));
+    }
+
+    cache.push_back(std::move(entry));
     return true;
+}
+
+ExternalSegmentationProvider::CacheEntry* ExternalSegmentationProvider::findEntry(const std::string& key, const std::vector<float>& signature)
+{
+    for (auto& e : cache) {
+        if (e.key == key && signatureMatches(e.signature, signature)) {
+            return &e;
+        }
+    }
+
+    return nullptr;
+}
+
+ExternalSegmentationProvider::CacheEntry* ExternalSegmentationProvider::findLatestEntry(const std::string& key)
+{
+    CacheEntry* latest = nullptr;
+
+    for (auto& e : cache) {
+        if (e.key == key && (!latest || e.lastUse > latest->lastUse)) {
+            latest = &e;
+        }
+    }
+
+    return latest;
+}
+
+bool ExternalSegmentationProvider::isRunning(const std::string& key, const std::vector<float>& signature) const
+{
+    for (const auto& r : running) {
+        if (r.key == key && signatureMatches(r.signature, signature)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool ExternalSegmentationProvider::failedRecently(const std::string& key, const std::vector<float>& signature)
+{
+    const auto now = std::chrono::steady_clock::now();
+    failures.erase(std::remove_if(failures.begin(), failures.end(), [&](const Failure& f) {
+        return now - f.when >= std::chrono::seconds(RETRY_SECONDS);
+    }), failures.end());
+
+    for (const auto& f : failures) {
+        if (f.key == key && signatureMatches(f.signature, signature)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void ExternalSegmentationProvider::takeFinishedThreads(std::vector<std::thread>& finished)
+{
+    for (auto it = workers.begin(); it != workers.end();) {
+        if (it->done) {
+            finished.push_back(std::move(it->thread));
+            it = workers.erase(it);
+        } else {
+            ++it;
+        }
+    }
 }
 
 void ExternalSegmentationProvider::sampleCached(const CacheEntry& entry, const SegmentationRequest& req, array2D<float>& out) const
@@ -615,19 +692,6 @@ void ExternalSegmentationProvider::sampleCached(const CacheEntry& entry, const S
     }
 }
 
-void ExternalSegmentationProvider::joinFinishedThreads()
-{
-    // caller holds mutex; threads of finished jobs are joined lazily
-    for (auto it = threads.begin(); it != threads.end();) {
-        if (it->joinable() && pending.empty()) {
-            it->join();
-            it = threads.erase(it);
-        } else {
-            ++it;
-        }
-    }
-}
-
 bool ExternalSegmentationProvider::segment(const SegmentationRequest& req, array2D<float>& out)
 {
     if (!req.L || !req.a || !req.b || req.width <= 0 || req.height <= 0
@@ -651,20 +715,46 @@ bool ExternalSegmentationProvider::segment(const SegmentationRequest& req, array
         signature = computeSignature(req);
     }
 
+    // Threads of finished jobs are joined lazily, and only after 'mutex' is
+    // released (the destructor of this runs last): a job needs the mutex to
+    // record its result, so joining it while holding the mutex can deadlock.
+    struct Joiner {
+        std::vector<std::thread> threads;
+        ~Joiner()
+        {
+            for (auto& t : threads) {
+                if (t.joinable()) {
+                    t.join();
+                }
+            }
+        }
+    } joiner;
+
+    Job job;
+    bool placeholder = false;   // 'out' holds the mask of another image, until this one is computed
+
     {
         std::lock_guard<std::mutex> lock(mutex);
-        joinFinishedThreads();
-        const auto it = cache.find(key);
+        takeFinishedThreads(joiner.threads);
 
-        if (it != cache.end() && (!fullFrame || signatureMatches(it->second.signature, signature) || req.policy != SegmentationPolicy::SYNC)) {
-            const bool fresh = !fullFrame || signatureMatches(it->second.signature, signature);
-            sampleCached(it->second, req, out);
+        // The mask of this image; a detail crop cannot tell images apart and takes the latest one.
+        CacheEntry* entry = fullFrame ? findEntry(key, signature) : findLatestEntry(key);
+        const bool fresh = entry != nullptr;
 
-            if (fresh || req.policy == SegmentationPolicy::CACHE_ONLY || !fullFrame) {
+        if (!entry && req.policy != SegmentationPolicy::SYNC) {
+            entry = findLatestEntry(key);
+        }
+
+        if (entry) {
+            entry->lastUse = ++useClock;
+            sampleCached(*entry, req, out);
+
+            if (fresh || req.policy == SegmentationPolicy::CACHE_ONLY) {
                 return true;
             }
 
             // stale cache on a preview request: return it now, recompute in the background
+            placeholder = true;
         } else if (!fullFrame || req.policy == SegmentationPolicy::CACHE_ONLY) {
             // a detail crop cannot be segmented on its own; the preview fills the cache
             out.fill(0.f, req.multiThread);
@@ -673,12 +763,21 @@ bool ExternalSegmentationProvider::segment(const SegmentationRequest& req, array
             out.fill(0.f, req.multiThread);
         }
 
-        if (req.policy == SegmentationPolicy::ASYNC && pending.count(key)) {
-            return it != cache.end();
+        job.id = nextJobId++;
+
+        if (req.policy == SegmentationPolicy::ASYNC) {
+            // Every finished job makes the GUI refresh the preview, which asks
+            // again: do not start what is already running or has just failed.
+            if (isRunning(key, signature) || failedRecently(key, signature)) {
+                return placeholder;
+            }
+
+            // registered together with the check above, so that two pipelines
+            // asking at the same time start one job
+            running.push_back({job.id, key, signature});
         }
     }
 
-    Job job;
     job.key = key;
     job.target = targetName(req.target);
     job.prompt = req.prompt;
@@ -705,36 +804,51 @@ bool ExternalSegmentationProvider::segment(const SegmentationRequest& req, array
 
         AISegmentationRegistry::getInstance().setLastError("");
         std::lock_guard<std::mutex> lock(mutex);
-        sampleCached(cache[key], req, out);
+        const CacheEntry* entry = findEntry(key, signature);
+
+        if (!entry) {
+            return false;
+        }
+
+        sampleCached(*entry, req, out);
         return true;
     }
 
     // ASYNC: compute in the background and let the GUI refresh when done.
-    {
-        std::lock_guard<std::mutex> lock(mutex);
-        pending.insert(key);
-        AISegmentationRegistry::getInstance().addPending(1);
-        threads.emplace_back([this, job]() {
-            std::string error;
-            const bool ok = runJob(job, error);
-            AISegmentationRegistry::getInstance().setLastError(ok ? "" : error);
-
-            if (!ok && settings && settings->verbose) {
-                printf("Segmentation failed: %s\n", error.c_str());
-            }
-
-            {
-                std::lock_guard<std::mutex> lock2(mutex);
-                pending.erase(job.key);
-            }
-
-            AISegmentationRegistry::getInstance().addPending(-1);
-            AISegmentationRegistry::getInstance().notifyResult();
-        });
-    }
-
+    AISegmentationRegistry::getInstance().addPending(1);
     std::lock_guard<std::mutex> lock(mutex);
-    return cache.count(key) > 0;
+    workers.emplace_back();
+    workers.back().id = job.id;
+    workers.back().thread = std::thread([this, job]() {
+        std::string error;
+        const bool ok = runJob(job, error);
+        AISegmentationRegistry::getInstance().setLastError(ok ? "" : error);
+
+        if (!ok && settings && settings->verbose) {
+            printf("Segmentation failed: %s\n", error.c_str());
+        }
+
+        {
+            std::lock_guard<std::mutex> lock2(mutex);
+            running.erase(std::remove_if(running.begin(), running.end(), [&](const Running& r) {
+                return r.id == job.id;
+            }), running.end());
+
+            if (!ok) {
+                failures.push_back({job.key, job.signature, std::chrono::steady_clock::now()});
+            }
+
+            for (auto& w : workers) {
+                if (w.id == job.id) {
+                    w.done = true;
+                }
+            }
+        }
+
+        AISegmentationRegistry::getInstance().addPending(-1);
+        AISegmentationRegistry::getInstance().notifyResult();
+    });
+    return placeholder;
 }
 
 // ---------------------------------------------------------------------------
